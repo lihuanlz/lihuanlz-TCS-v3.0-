@@ -137,7 +137,7 @@ def run_noisy_demo():
     print(f"\nResults saved to {csv_filename}")
 
     # ---- Plotting ----
-    fig, axes = plt.subplots(len(kappa_list), 3, figsize=(18, 6*len(kappa_list)))
+    fig, axes = plt.subplots(len(kappa_list), 3, figsize=(15, 5*len(kappa_list)))
 
     for i, r in enumerate(results):
         ax0, ax1, ax2 = axes[i, 0], axes[i, 1], axes[i, 2]
@@ -180,9 +180,9 @@ def run_noisy_demo():
         ax2.legend()
 
     fig.suptitle('Fig. S9.2. True TCS (black), κ→∞ limit (green dashed), and fits',
-                 fontweight='bold', fontsize=14, y=1.01)
+                 fontweight='bold', fontsize=14, y=1)
     plt.tight_layout()
-    plt.savefig('SI_S9_Table_S9_1_and_Figure_S9_1.svg', dpi=150)
+    plt.savefig('SI_S9_Table_S9_1_and_Figure_S9_2.svg', dpi=100)
     plt.show()
 
 if __name__ == "__main__":

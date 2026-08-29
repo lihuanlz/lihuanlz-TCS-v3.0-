@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import csv
 
 # =========================================================
-# 1. TCS 不可逆动力学方程 (n=2)
+# 1. TCS irreversible kinetic equations (n=2)
 # =========================================================
 def tcs_kinetics(tau, p, xi, kappa):
     """dp/dτ = (1-p)^2 * (ξ - p/κ)"""
@@ -20,7 +20,7 @@ def tcs_kinetics(tau, p, xi, kappa):
     return dpdtau
 
 # =========================================================
-# 2. 生成 TCS 动力学数据
+# 2. Generate TCS kinetic data
 # =========================================================
 def generate_TCS_curve(kappa, xi, C_site, tau_max, n_points=100):
     tau_eval = np.linspace(0, tau_max, n_points)
@@ -31,14 +31,14 @@ def generate_TCS_curve(kappa, xi, C_site, tau_max, n_points=100):
     return tau_eval, q_tau
 
 # =========================================================
-# 3. PSO 非线性模型
+# 3. PSO nonlinear model
 # =========================================================
 def pso_nonlinear(t, qe, k):
     """qt = qe^2 * k * t / (1 + qe * k * t)"""
     return (qe**2 * k * t) / (1 + qe * k * t)
 
 # =========================================================
-# 4. PSO 线性拟合
+# 4. PSO linear fit
 # =========================================================
 def fit_PSO_linear(tau, q_tau):
     mask = q_tau > 0
@@ -57,7 +57,7 @@ def fit_PSO_linear(tau, q_tau):
     return qe, k, r2
 
 # =========================================================
-# 5. PSO 非线性拟合
+# 5. PSO nonlinear fit
 # =========================================================
 def fit_PSO_nonlinear(tau, q_tau):
     qe_guess = max(q_tau)
@@ -75,10 +75,10 @@ def fit_PSO_nonlinear(tau, q_tau):
         return np.nan, np.nan, np.nan
 
 # =========================================================
-# 6. 主实验与绘图
+# 6. Main experiment and plotting
 # =========================================================
 def run_experiment1():
-    C_site_true = 100.0   # 真实 q_max
+    C_site_true = 100.0   # true q_max
     xi = 10.0
     tau_max = 5.0
     kappa_values = [0.01, 0.1, 1.0, 10, 100]
@@ -90,7 +90,7 @@ def run_experiment1():
     print(header)
     print("-" * 85)
 
-    # 用于存储 CSV 数据
+    # for storing CSV data
     csv_rows = [["κ", "Method", "Fitted q_e", "Bias %", "Fitted k", "R²"]]
 
     results = {}
@@ -111,7 +111,7 @@ def run_experiment1():
             "", "Nonlinear", qe_nl, bias_nl, k_nl, r2_nl))
         print()
 
-        # 追加 CSV 行
+        # append CSV row
         csv_rows.append([kappa, "Linear", round(qe_lin, 2), round(bias_lin, 2),
                          round(k_lin, 4), round(r2_lin, 4)])
         csv_rows.append([kappa, "Nonlinear", round(qe_nl, 2) if not np.isnan(qe_nl) else "NaN",
@@ -125,14 +125,14 @@ def run_experiment1():
             'qe_nl': qe_nl, 'k_nl': k_nl
         }
 
-    # 保存 CSV 文件
+    # save CSV file
     csv_filename = "experiment1_results.csv"
     with open(csv_filename, "w", newline="") as f:
         writer = csv.writer(f)
         writer.writerows(csv_rows)
     print(f"Results saved to {csv_filename}\n")
 
-    # -------- 绘制四个 κ 的对比图 --------
+    # -------- comparison plot for the four κ values --------
     plot_kappas = [0.01, 0.1, 1.0, 10]
     fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     axes = axes.flatten()

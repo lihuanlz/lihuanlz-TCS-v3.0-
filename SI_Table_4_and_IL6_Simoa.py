@@ -1722,8 +1722,8 @@ ax.text(0.05, 0.95, loa_text, transform=ax.transAxes, verticalalignment='top',
         bbox=dict(boxstyle='round', facecolor='white', alpha=0.8), fontsize=14)
 
 plt.tight_layout()
-fig_core.savefig('Fig_2b.png', dpi=300, bbox_inches='tight')
-print("\nCore figure saved: Fig_2b.png")
+fig_core.savefig('Fig_2b.svg', dpi=300, bbox_inches='tight')
+print("\nCore figure saved: Fig_2b.svg")
 
 # ============================================================================
 # 5. Supplementary figure: Fig_S1.png (QQ + concentration distribution + Bland-Altman)
@@ -1793,8 +1793,8 @@ ax.legend(fontsize=14)
 ax.grid(False)
 
 plt.tight_layout()
-fig_s1.savefig('Fig_S1.png', dpi=300, bbox_inches='tight')
-print("Supplementary figure saved: Fig_S1.png")
+fig_s1.savefig('Fig_S1.svg', dpi=300, bbox_inches='tight')
+print("Supplementary figure saved: Fig_S1.svg")
 
 print("\n" + "="*80)
 
@@ -1899,8 +1899,8 @@ print("\nR3 analysis saved to R3_analysis.csv")
 # ax_r3.text(0.05, 0.95, param_text,
 #            transform=ax_r3.transAxes, fontsize=10, va='top')
 # plt.tight_layout()
-# fig_r3.savefig('Fig_R3.png', dpi=300, bbox_inches='tight')
-# print("R3 figure saved: Fig_R3.png")
+# fig_r3.savefig('Fig_R3.svg', dpi=300, bbox_inches='tight')
+# print("R3 figure saved: Fig_R3.svg")
 
 print("All outputs generated.")
 print("="*80)
@@ -2829,10 +2829,10 @@ ax3.legend(['R2', 'R1'])
 
 plt.suptitle(f'R1 vs R2 Residual Comparison (β={beta_fit:.2f}, κ={kappa_fit:.2f})', fontsize=14, fontweight='bold')
 plt.tight_layout()
-plt.savefig('R1_vs_R2_residuals.png', dpi=300, bbox_inches='tight')
+plt.savefig('R1_vs_R2_residuals.svg', dpi=300, bbox_inches='tight')
 plt.show()
 
-print("\nResidual plot saved: R1_vs_R2_residuals.png")
+print("\nResidual plot saved: R1_vs_R2_residuals.svg")
 
 
 
@@ -2921,7 +2921,7 @@ print("R1 least-squares initialization...")
 #                       args=(mu_R1_all, k_R1_all, n_R1_all),
 #                       bounds=bounds_R1, method='L-BFGS-B',
 #                       options={'maxiter': 5000, 'eps': 1e-8})
-# 全局优化：differential_evolution（不依赖单一起点）
+# Global optimization: differential_evolution (does not rely on a single starting point)
 from scipy.optimize import differential_evolution
 res_R1 = differential_evolution(
     neg_loglik_R1,
@@ -2930,10 +2930,10 @@ res_R1 = differential_evolution(
     seed=42,
     maxiter=1000,
     tol=1e-10,
-    popsize=30,       # 种群大小=30×参数数=90
+    popsize=30,       # population size = 30 × number of parameters = 90
     mutation=(0.5, 1.5),
     recombination=0.9,
-    polish=True,      # 最后自动用L-BFGS-B精细优化
+    polish=True,      # final refinement with L-BFGS-B
     workers=1,
 )
 
@@ -3266,7 +3266,7 @@ ax.legend(fontsize=11)
 
 plt.suptitle('R1 Nested Sampling Posteriors: Is β identifiable? (IL-6)', fontsize=16, fontweight='bold')
 plt.tight_layout()
-plt.savefig('R1_beta_identifiability.png', dpi=300, bbox_inches='tight')
+plt.savefig('R1_beta_identifiability.svg', dpi=300, bbox_inches='tight')
 plt.show()
 
 # ---- Corner plot ----
@@ -3281,7 +3281,7 @@ if corner is not None:
     )
     plt.suptitle('R1 Nested Sampling Posterior — β Identifiability Test (IL-6)',
                  fontsize=16, fontweight='bold')
-    plt.savefig('R1_corner_plot_nested.png', dpi=300, bbox_inches='tight')
+    plt.savefig('R1_corner_plot_nested.svg', dpi=300, bbox_inches='tight')
     plt.show()
 
 # ---- Final verdict ----

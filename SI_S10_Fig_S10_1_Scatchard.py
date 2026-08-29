@@ -3,7 +3,7 @@
 Created on Fri Jul 17 17:00:39 2026
 Updated Jul 20 2026: aligned with S10.11 rewrite — cooperative Scatchard non-linearity.
 
-@author: lihua
+@author: lihuan
 
 Fig. S10.1. Scatchard plots under stoichiometric multivalence and cooperativity.
 

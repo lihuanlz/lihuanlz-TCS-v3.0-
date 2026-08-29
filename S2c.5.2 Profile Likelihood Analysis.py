@@ -2,7 +2,8 @@
 """
 Created on Tue Jul 21 14:44:37 2026
 
-@author: lihua
+@author: lihuan
+
 """
 
 #!/usr/bin/env python3
@@ -21,7 +22,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 
 # ---- Parallel config ----
-N_WORKERS = max(1, os.cpu_count() - 2)  # 留2核给系统
+N_WORKERS = max(1, os.cpu_count() - 2)  # leave 2 cores for the OS
 print(f"Using {N_WORKERS} workers (total CPUs: {os.cpu_count()})")
 
 # ---------------------------------------------------------------------------

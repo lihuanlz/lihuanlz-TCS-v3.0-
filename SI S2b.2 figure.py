@@ -31,7 +31,7 @@ Improvements over v1:
   - Colorbar added
 
 Outputs:
-  VR_phase_diagram.png  - contour map with g0 boundary and operating points
+  Fig.S2b.2.png  - contour map with g0 boundary and operating points
   printed checks        - beta=1 exact law, beta vs N_eff disentangling,
                           envelope property, beta=2 large-N_eff counterexample
 """
@@ -107,7 +107,7 @@ def run_checks():
 # Phase diagram (smooth contours)
 # ============================================================
 
-def make_figure(Omega=2520, out="VR_phase_diagram.svg"):
+def make_figure(Omega=2520, out="Fig_S2b_2.svg"):
     # --- Computation grid: 24 betas (divisors of 2520 in [1,50]) x 200 u ---
     # 2520 = 2^3 * 3^2 * 5 * 7; divisors in [1,50]:
     betas = np.array([d for d in range(1, 51) if Omega % d == 0])

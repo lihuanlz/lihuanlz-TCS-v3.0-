@@ -28,10 +28,10 @@ print("Digital PCR — TCS model (κ=0, b=0)")
 print("=" * 80)
 
 # ============================================================================
-# 1. 实验参数与数据
+# 1. Experimental parameters and data
 # ============================================================================
-N_total = 160000          # 总液滴数（固定）
-V = 160e-6                # 体积 L，实际未用（浓度通过分子数体现）
+N_total = 160000          # total droplet count (fixed)
+V = 160e-6                # volume in L; not actually used (concentration enters via molecule counts)
 
 # ============================================================================
 # Data: BRAF V600E mutation assay calibration standard
@@ -55,33 +55,33 @@ V = 160e-6                # 体积 L，实际未用（浓度通过分子数体�
 # unknown. dPCR is the only platform in the framework whose M0 follows
 # from partition counting alone (S2b.3 binomial collapse).
 
-# 突变型数据 (k1, n1-k1)
+# mutant data (k1, n1-k1)
 mut_k = np.array([0, 6, 24, 39, 361, 3770])
 mut_neg = np.array([104683, 104533, 108165, 104895, 103856, 98637])
-mut_n = mut_k + mut_neg                     # 实际有效液滴数
+mut_n = mut_k + mut_neg                     # effective droplet count
 
-# 野生型数据 (k2, n2-k2)
+# wild-type data (k2, n2-k2)
 wt_k = np.array([103934, 103641, 107244, 104016, 102806, 101652])
 wt_neg = np.array([749, 898, 945, 918, 1411, 755])
 wt_n = wt_k + wt_neg
 
-# 输入突变比例（百分比）
+# input mutant fractions (percent)
 mut_fraction_pct = np.array([0, 0.001, 0.005, 0.01, 0.1, 1])
 mut_fraction = mut_fraction_pct / 100.0
 
-# 理论分子数（野生型总拷贝）
+# theoretical molecule counts (total wild-type copies)
 M_wt_theory = 5000 * 160          # = 800,000
 lambda_wt_theory = M_wt_theory / N_total   # = 5
-# 理论突变分子数（由比例推导）
+# theoretical mutant molecule counts (derived from the fractions)
 M_mut_theory = (mut_fraction / (1 - mut_fraction)) * M_wt_theory
-M_mut_theory[0] = 0.0             # 0% 时为0
+M_mut_theory[0] = 0.0             # zero at 0%
 
 # ============================================================================
-# 2. 点估计：M = -N_total * ln(1 - k/n)
+# 2. Point estimate: M = -N_total * ln(1 - k/n)
 # ============================================================================
 def estimate_M(k, n):
-    """泊松校正，返回分子数 M"""
-    # 避免数值问题
+    """Poisson correction; return the molecule count M"""
+    # avoid numerical issues
     P = np.clip(k / n, 1e-12, 1 - 1e-12)
     return -N_total * np.log(1 - P)
 
@@ -92,28 +92,28 @@ lambda_mut_hat = M_mut_hat / N_total
 lambda_wt_hat = M_wt_hat / N_total
 
 # ============================================================================
-# 辅助函数：CV 与置信区间（基于 TCS 模型，κ=0,b=0）
+# Helper functions: CV and confidence intervals (TCS model, κ=0, b=0)
 # ============================================================================
 def M_from_Ppos(Ppos):
-    """根据阳性比例反算 M（已含 N_total）"""
+    """Back-calculate M from the positive fraction (N_total included)"""
     Ppos = np.clip(Ppos, 1e-12, 1 - 1e-12)
     return -N_total * np.log(1 - Ppos)
 
 def Ppos_from_M(M):
-    """M -> 阳性比例"""
+    """M -> positive fraction"""
     return 1 - np.exp(-M / N_total)
 
 def calc_CV(P_obs, n):
-    """Delta 法 CV (对于 M 的估计)"""
+    """Delta-method CV (for the estimate of M)"""
     if P_obs <= 0 or P_obs >= 1:
         return np.inf
     M = M_from_Ppos(P_obs)
     dM_dP = N_total / (1 - P_obs)
     se = np.abs(dM_dP) * np.sqrt(P_obs * (1 - P_obs) / n)
-    return (se / M) * 100  # 百分比
+    return (se / M) * 100  # percent
 
 def delta_ci(P_obs, n, alpha=0.05):
-    """Delta 法置信区间"""
+    """Delta-method confidence interval"""
     M = M_from_Ppos(P_obs)
     dM_dP = N_total / (1 - P_obs)
     se = np.abs(dM_dP) * np.sqrt(P_obs * (1 - P_obs) / n)
@@ -121,7 +121,7 @@ def delta_ci(P_obs, n, alpha=0.05):
     return (M - z * se, M + z * se)
 
 def exact_transformation_ci(k, n, alpha=0.05):
-    """基于 Clopper–Pearson 比例区间映射"""
+    """Mapping based on the Clopper–Pearson proportion interval"""
     if k == 0:
         p_low = 0.0
         p_up = beta_dist.ppf(1 - alpha/2, k + 1, n - k)
@@ -136,7 +136,7 @@ def exact_transformation_ci(k, n, alpha=0.05):
     return (M_low, M_up)
 
 def likelihood_ratio_ci(k, n, alpha=0.05):
-    """基于似然比（对单一 M 的参数）"""
+    """Based on the likelihood ratio (for the single parameter M)"""
     P_obs = k / n
     M_hat = M_from_Ppos(P_obs)
 
@@ -160,22 +160,22 @@ def likelihood_ratio_ci(k, n, alpha=0.05):
     return (M_low, M_up)
 
 # ============================================================================
-# 3. LoB / LoD / LoQ 计算（R2 精确与 R3 近似）
+# 3. LoB / LoD / LoQ calculation (R2 exact and R3 approximation)
 # ============================================================================
 def compute_lob_lod_loq_r2(n):
-    """R2 精确方法，返回字典 M_* """
+    """R2 exact method; return dict M_* """
     # LoB: b=0 -> k95=0
     lob = 0.0
-    # LoD: 检测概率 0.95, k_th=1
+    # LoD: detection probability 0.95, k_th=1
     # Pr(k>=1) = 1 - exp(-M * n / N_total) >= 0.95
     lod = (N_total / n) * (-np.log(0.05))
-    # LoQ (CV=20%) 数值求解
+    # LoQ (CV=20%) solved numerically
     def cv_eq(M):
         if M <= 0: return np.inf
         P = Ppos_from_M(M)
         if P <= 0 or P >= 1: return np.inf
         return calc_CV(P, n) - 20.0
-    # 寻找低浓度根
+    # find the low-concentration root
     try:
         M_low = 1.0
         while cv_eq(M_low) > 0: M_low *= 2
@@ -184,7 +184,7 @@ def compute_lob_lod_loq_r2(n):
         loq_low = brentq(cv_eq, M_low, M_high, xtol=1e-6)
     except:
         loq_low = np.nan
-    # 高浓度根（如果存在）
+    # high-concentration root (if it exists)
     try:
         M_start = N_total * 0.5
         if cv_eq(M_start) < 0:
@@ -199,9 +199,9 @@ def compute_lob_lod_loq_r2(n):
     return {'LoB': lob, 'LoD': lod, 'LoQ_low': loq_low, 'LoQ_high': loq_high}
 
 # def compute_lob_lod_loq_r3(n):
-#     """R3 线性近似，返回字典 M_* """
+#     """R3 linear approximation; return dict M_* """
 #     lob = 0.0
-#     lod = (N_total / n) * (-np.log(0.05))  # 与R2相同
+#     lod = (N_total / n) * (-np.log(0.05))  # same as R2
 #     loq_low = N_total * (25.0 / n)         # x = 1/(0.04 n) -> M = N * x
 #     return {'LoB': lob, 'LoD': lod, 'LoQ_low': loq_low}
 def compute_lob_lod_loq_r3(n):
@@ -217,14 +217,14 @@ def compute_lob_lod_loq_r3(n):
     lod = 3.0 * N_total / n
     loq_low = N_total * (25.0 / n)
     return {'LoB': lob, 'LoD': lod, 'LoQ_low': loq_low}
-# 为每个样本计算（用各自的 n）
+# compute per sample (using its own n)
 r2_results = []
 r3_results = []
 for n_val in mut_n:
     r2_results.append(compute_lob_lod_loq_r2(n_val))
     r3_results.append(compute_lob_lod_loq_r3(n_val))
 
-# 转换区间范围（用于绘图的竖线及 KDE）
+# transform interval ranges (for the vertical lines and KDE in the plot)
 def conc_range_from_list(dict_list, key):
     vals = np.array([d[key] for d in dict_list])
     vals = vals[~np.isnan(vals)]
@@ -256,7 +256,7 @@ print("identical LoD, validating the dPCR-R3 reduction as the κ→0 limit of")
 print("the full TCS master equation.")
 
 # ============================================================================
-# 4. 汇总表格与打印
+# 4. Summary table and printing
 # ============================================================================
 print("\nPoint estimates and CIs (Mutation channel):")
 mut_records = []
@@ -302,7 +302,7 @@ df_wt = pd.DataFrame(wt_records)
 print(df_wt.to_string(index=False))
 df_wt.to_csv('dPCR_wildtype_quantification.csv', index=False)
 
-# 输出 LoB/LoD/LoQ 表
+# output the LoB/LoD/LoQ table
 lob_lod_loq_df = pd.DataFrame({
     'Sample': np.arange(1,7),
     'n': mut_n,
@@ -319,25 +319,25 @@ print(lob_lod_loq_df.to_string(index=False))
 lob_lod_loq_df.to_csv('dPCR_LoB_LoD_LoQ.csv', index=False)
 
 # ============================================================================
-# 5. 突变比例（比值）估计及置信区间（Delta法）
+# 5. Mutant-fraction (ratio) estimates and confidence intervals (Delta method)
 # ============================================================================
 ratio_hat = M_mut_hat / (M_mut_hat + M_wt_hat)
-# Delta 法方差（假设独立）
+# Delta-method variance (assuming independence)
 # r = M1/(M1+M2)
 # SE_r = sqrt( (M2^2 * var(M1) + M1^2 * var(M2)) / (M1+M2)^4 )
 var_M1 = np.array([delta_ci(mut_k[i]/mut_n[i], mut_n[i]) for i in range(6)])
 var_M2 = np.array([delta_ci(wt_k[i]/wt_n[i], wt_n[i]) for i in range(6)])
 se_M1 = np.array([(ci[1]-ci[0])/(2*np.sqrt(chi2.ppf(0.95,1))) for ci in var_M1])
 se_M2 = np.array([(ci[1]-ci[0])/(2*np.sqrt(chi2.ppf(0.95,1))) for ci in var_M2])
-# 直接用 se = (upper-lower)/(2*1.96) 对于95%CI
-# 上面 chi2.ppf(0.95,1)=3.84, sqrt=1.96, 所以除以2*1.96
+# use se = (upper-lower)/(2*1.96) directly for the 95% CI
+# chi2.ppf(0.95,1)=3.84 above, sqrt=1.96, hence divide by 2*1.96
 with np.errstate(divide='ignore', invalid='ignore'):
     se_ratio = np.sqrt( (M_wt_hat**2 * se_M1**2 + M_mut_hat**2 * se_M2**2) / (M_mut_hat + M_wt_hat)**4 )
 ratio_low = ratio_hat - 1.96 * se_ratio
 ratio_up  = ratio_hat + 1.96 * se_ratio
 
-# 处理0比例
-ratio_low[0] = 0.0; ratio_up[0] = 0.0  # 0%样本无突变
+# handle zero fractions
+ratio_low[0] = 0.0; ratio_up[0] = 0.0  # no mutant in the 0% sample
 
 print("\nMutation fraction estimation:")
 ratio_df = pd.DataFrame({
@@ -350,22 +350,22 @@ print(ratio_df.to_string(index=False))
 ratio_df.to_csv('dPCR_ratio_comparison.csv', index=False)
 
 # ============================================================================
-# 6. 四幅图 (2x2) —— Clopper‑Pearson 误差条版
+# 6. Four panels (2x2) — Clopper–Pearson error-bar version
 # ============================================================================
 fig, axes = plt.subplots(2, 2, figsize=(13, 11))
 fig.suptitle('Extended Data Fig. 4: Digital PCR — TCS Analysis', fontsize=20, fontweight='bold')
 
-# ---------- 预计算各点 yerr (Clopper‑Pearson exact CI) ----------
-# 野生型 λ 及其 CP CI
+# ---------- precompute yerr at each point (Clopper–Pearson exact CI) ----------
+# wild-type λ and its CP CI
 wt_lambda = M_wt_hat / N_total
 wt_ci_low = np.zeros(6); wt_ci_up = np.zeros(6)
 for i in range(6):
-    ci = exact_transformation_ci(wt_k[i], wt_n[i])   # 改用 exact CP
+    ci = exact_transformation_ci(wt_k[i], wt_n[i])   # use exact CP instead
     wt_ci_low[i] = ci[0] / N_total; wt_ci_up[i] = ci[1] / N_total
 wt_yerr = [np.maximum(0, wt_lambda - wt_ci_low),
            np.maximum(0, wt_ci_up - wt_lambda)]
 
-# 突变型 R2 λ 及其 CP CI
+# mutant R2 λ and its CP CI
 mut_lambda = M_mut_hat / N_total
 mut_ci_low = np.zeros(6); mut_ci_up = np.zeros(6)
 for i in range(6):
@@ -374,7 +374,7 @@ for i in range(6):
 mut_yerr = [np.maximum(0, mut_lambda - mut_ci_low),
             np.maximum(0, mut_ci_up - mut_lambda)]
 
-# R3 的 λ 估计及其 CP CI（比例 CI 变换）
+# R3 λ estimate and its CP CI (proportion-CI transform)
 lambda_mut_r3 = mut_k / mut_n
 r3_ci_low = np.zeros(6); r3_ci_up = np.zeros(6)
 for i in range(6):
@@ -383,15 +383,15 @@ for i in range(6):
 r3_yerr = [np.maximum(0, lambda_mut_r3 - r3_ci_low),
            np.maximum(0, r3_ci_up - lambda_mut_r3)]
 
-# 比例误差 (仍用 Delta 法)
+# proportion error (still Delta method)
 ratio_err = 1.96 * se_ratio
 ratio_err[0] = 0.0
 
-# x 轴数据
+# x-axis data
 x_dilution = mut_fraction_pct  # 0, 0.001, 0.005, 0.01, 0.1, 1
 mask_pos = x_dilution > 0
 
-# ===================== (a) 野生型 λ =====================
+# ===================== (a) wild-type λ =====================
 ax = axes[0, 0]
 ax.errorbar(np.arange(1,7), wt_lambda, yerr=wt_yerr,
             fmt='ro', capsize=5, label='Estimated λ')
@@ -412,9 +412,9 @@ ax.text(0.57, 0.25, "Error bars: Clopper-Pearson 95% CI",
 
 
 
-# ===================== (b) 突变型 R2 =====================
+# ===================== (b) mutant R2 =====================
 ax = axes[0, 1]
-# 数据点图例已包含 CI 类型
+# CI type already included in the data-point legend
 ax.errorbar(x_dilution[mask_pos], mut_lambda[mask_pos],
             yerr=[mut_yerr[0][mask_pos], mut_yerr[1][mask_pos]],
             fmt='o', color='red', capsize=5, 
@@ -425,7 +425,7 @@ ax.set_xlabel('Input mutation fraction (%)',fontsize=16)
 ax.set_ylabel('λ (log scale)',fontsize=16)
 ax.set_title('(2) Mutation λ (R2)',fontsize=16,fontweight='bold')
 
-# 性能区间水平线（不加入图例，仅示意）
+# performance-interval horizontal lines (illustrative only, not added to the legend)
 for val_range, col, ls in zip(
     [r2_lob_range, r2_lod_range, r2_loq_l_range, r2_loq_h_range],
     ['green','orange','purple','magenta'],
@@ -434,7 +434,7 @@ for val_range, col, ls in zip(
         ax.axhline(y=val_range[0]/N_total, color=col, linestyle=ls, alpha=0.8)
         ax.axhline(y=val_range[1]/N_total, color=col, linestyle=ls, alpha=0.8)
 
-# 右侧密度曲线，图例中直接标注数值范围
+# density curve on the right; numeric range annotated directly in the legend
 ax2 = ax.twinx()
 kde_items = [
     (np.array([d['LoD']/N_total for d in r2_results]), 'orange',
@@ -452,7 +452,7 @@ ax2.set_ylabel('Density', fontsize=16)
 ax2.legend(loc='upper left',fontsize=16)
 ax.legend(loc='lower right',fontsize=16)
 
-# ===================== (c) 突变型 R3 =====================
+# ===================== (c) mutant R3 =====================
 ax = axes[1, 0]
 ax.errorbar(x_dilution[mask_pos], lambda_mut_r3[mask_pos],
             yerr=[r3_yerr[0][mask_pos], r3_yerr[1][mask_pos]],
@@ -497,7 +497,7 @@ ax.legend(loc='lower right',fontsize=16)
 
 
 
-# ===================== (d) 突变比例 =====================
+# ===================== (d) mutant fraction =====================
 ax = axes[1, 1]
 non_zero = mut_fraction_pct > 0
 ax.errorbar(mut_fraction_pct[non_zero], ratio_hat[non_zero],
@@ -660,9 +660,9 @@ ax.axhline(y=20, color='gray', linestyle=':', alpha=0.5, label='CV = 20% (LoQ)')
 ax.legend(fontsize=10, loc='upper right')
 ax.grid(True, alpha=0.2, which='both')
 plt.tight_layout()
-fig2.savefig('dPCR_CV_MC_vs_R1.png', dpi=300, bbox_inches='tight')
+fig2.savefig('dPCR_CV_MC_vs_R1.svg', dpi=300, bbox_inches='tight')
 plt.show()
-print("\nFigure saved: dPCR_CV_MC_vs_R1.png")
+print("\nFigure saved: dPCR_CV_MC_vs_R1.svg")
 
 # ============================================================================
 # 9. CI coverage figure
@@ -686,9 +686,9 @@ ax3.set_ylim(0.85, 1.02)
 ax3.legend(fontsize=10, loc='lower right')
 ax3.grid(True, alpha=0.2, which='both')
 plt.tight_layout()
-fig3.savefig('dPCR_CI_coverage.png', dpi=300, bbox_inches='tight')
+fig3.savefig('dPCR_CI_coverage.svg', dpi=300, bbox_inches='tight')
 plt.show()
-print("Figure saved: dPCR_CI_coverage.png")
+print("Figure saved: dPCR_CI_coverage.svg")
 
 print("\n" + "=" * 80)
 print("All MC validation complete.")

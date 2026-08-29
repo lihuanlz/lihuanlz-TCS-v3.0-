@@ -2,7 +2,7 @@
 """
 Created on Wed Jul 22 13:55:06 2026
 
-@author: lihua
+@author: lihuan
 """
 
 
@@ -26,18 +26,18 @@ import warnings
 
 
 # ==========================================================
-# 1. 数据加载
+# 1. Data loading
 # ==========================================================
 def load_yalow1960_data() -> Tuple[np.ndarray, np.ndarray]:
-    """返回 (f_all, p_all)，其中 f_all 用 1e15 代替无穷大稀释因子。
+    """Return (f_all, p_all); in f_all, 1e15 stands for an infinite dilution factor.
 
-    列含义: [f, ?, ?, ?, p*/?, p*]
-      0: f  (稀释因子; np.inf = 零标准)
-      1-4: 原始测量值 (counts 等) - 不参与拟合
-      5: p* (tracer 的结合分率)
+    Column meanings: [f, ?, ?, ?, p*/?, p*]
+      0: f  (dilution factor; np.inf = zero standard)
+      1-4: raw measurements (counts etc.) - not used in the fit
+      5: p* (bound fraction of the tracer)
     """
     raw = np.array([
-        [np.inf, 0,    6.9, 2.6, 2.6538, 0.7263],  # 零浓度
+        [np.inf, 0,    6.9, 2.6, 2.6538, 0.7263],  # zero concentration
         [10,     1.4,  6.8, 3.4, 2.0000, 0.6667],
         [5,      2.8,  5.2, 3.6, 1.4444, 0.5909],
         [3.3333, 4.2,  5.0, 4.0, 1.2500, 0.5556],
@@ -51,20 +51,20 @@ def load_yalow1960_data() -> Tuple[np.ndarray, np.ndarray]:
 
 
 # ==========================================================
-# 2. TCS 竞争法严格方程
+# 2. Exact TCS competition equation
 # ==========================================================
 def tcs_competitive(f: np.ndarray, kappa: float, xi0: float, xi_star: float) -> np.ndarray:
-    """TCS 竞争法严格方程（有限 κ）。
+    """Exact TCS competition equation (finite κ).
 
-    p_total 来自 ξ_tot = p_total/(1-p_total) + p_total/κ 的解
-    p_star  = p_total × (ξ*/ξ_tot) 由 ξ_i = p_i × (1/(1-p_total) + 1/κ) 精确定出
+    p_total from solving ξ_tot = p_total/(1-p_total) + p_total/κ
+    p_star  = p_total × (ξ*/ξ_tot), determined exactly from ξ_i = p_i × (1/(1-p_total) + 1/κ)
 
     Parameters
     ----------
-    f       : 稀释因子（f=∞ 对应 1e15）
-    kappa   : 无量纲耗竭参数 (= K_d / (n R_T))
-    xi0     : 未标记抗原归一化浓度
-    xi_star : 标记抗原归一化浓度
+    f       : dilution factor (f=∞ mapped to 1e15)
+    kappa   : dimensionless depletion parameter (= K_d / (n R_T))
+    xi0     : normalized unlabeled-antigen concentration
+    xi_star : normalized labeled-antigen concentration
     """
     xi_tot = xi0 / f + xi_star
     b = kappa * xi_tot + kappa + 1
@@ -75,20 +75,20 @@ def tcs_competitive(f: np.ndarray, kappa: float, xi0: float, xi_star: float) -> 
 
 
 # ==========================================================
-# 3. Durbin-Watson 统计量
+# 3. Durbin-Watson statistic
 # ==========================================================
 def durbin_watson(residuals: np.ndarray) -> float:
-    """计算 Durbin-Watson 统计量。DW≈2 表示无自相关。"""
+    """Compute the Durbin-Watson statistic. DW≈2 indicates no autocorrelation."""
     diff = np.diff(residuals)
     return np.sum(diff**2) / np.sum(residuals**2)
 
 
 # ==========================================================
-# 4. 拟合与评估
+# 4. Fitting and evaluation
 # ==========================================================
 def fit_model(f_all: np.ndarray, p_all: np.ndarray,
               p0: Tuple[float, float, float] = (10.0, 5.0, 2.5)) -> Dict[str, Any]:
-    """拟合自由 κ 的 TCS 模型，返回参数、协方差、R²、DW 等。"""
+    """Fit the TCS model with free κ; return parameters, covariance, R², DW, etc."""
     popt, pcov = curve_fit(tcs_competitive, f_all, p_all, p0=p0,
                            bounds=([0, 0, 0], [np.inf, np.inf, np.inf]),
                            maxfev=1000000)
@@ -112,12 +112,12 @@ def fit_model(f_all: np.ndarray, p_all: np.ndarray,
 
 
 # ==========================================================
-# 5. Case-bootstrap 置信区间
+# 5. Case-bootstrap confidence intervals
 # ==========================================================
 def bootstrap_ci(f_all: np.ndarray, p_all: np.ndarray,
                  initial_popt: Tuple[float, float, float],
                  n_boot: int = 2000, seed: int = 42) -> Dict[str, np.ndarray]:
-    """Case resampling bootstrap，返回 (2.5%, 97.5%) 区间。"""
+    """Case-resampling bootstrap; return the (2.5%, 97.5%) interval."""
     np.random.seed(seed)
     boot_params = []
     for _ in range(n_boot):
@@ -144,12 +144,12 @@ def bootstrap_ci(f_all: np.ndarray, p_all: np.ndarray,
 
 
 # ==========================================================
-# 6. κ 扫描（固定 κ，看 R² 变化）
+# 6. κ scan (fix κ and watch R² change)
 # ==========================================================
 def kappa_sweep(f_all: np.ndarray, p_all: np.ndarray,
                 xi0_init: float, xi_star_init: float,
                 k_values: list = None) -> list:
-    """对一系列固定 κ 值分别拟合 ξ₀, ξ*，返回 [(κ, r², ξ₀_fit, ξ*_fit), ...]。"""
+    """Fit ξ₀, ξ* at a series of fixed κ values; return [(κ, r², ξ₀_fit, ξ*_fit), ...]."""
     if k_values is None:
         k_values = [0.001, 0.01, 0.1, 1, 10, 100, 1000, 10000]
     results = []
@@ -170,22 +170,22 @@ def kappa_sweep(f_all: np.ndarray, p_all: np.ndarray,
 
 
 # ==========================================================
-# 7. 绘图（Extended Data Fig. 2）
+# 7. Plotting (Extended Data Fig. 2)
 # ==========================================================
 def plot_results(f_all: np.ndarray, p_all: np.ndarray,
                  fit: Dict[str, Any], ci: Dict[str, np.ndarray],
                  sweep: list, output_path: str = 'Figure2b.svg'):
-    """生成半对数结合曲线图，包含数据、自由 κ 拟合和两条固定 κ 曲线。"""
+    """Generate a semi-log binding-curve plot with data, the free-κ fit, and two fixed-κ curves."""
     kappa_fit, xi0_fit, xi_star_fit = fit['popt']
     p_zero_model = fit['p_zero_model']
     r2 = fit['r2']
 
-    # 横坐标：未标记抗原浓度 ξ_unlabeled = ξ₀ / f（排除零标准点）
+    # x-axis: unlabeled-antigen concentration ξ_unlabeled = ξ₀ / f (zero-standard point excluded)
     xi_unlabeled = xi0_fit / f_all[1:]
-    # 零标准点横坐标：取最低浓度的 5%（显示用，无物理意义）
+    # x position of the zero standard: 5% of the lowest concentration (display only, no physical meaning)
     xi_zero = xi_unlabeled.min() * 0.05
 
-    # 拟合曲线所用的 ξ 范围
+    # ξ range used for the fitted curves
     xi_curve = np.logspace(np.log10(xi_unlabeled.min() * 0.02),
                            np.log10(xi_unlabeled.max() * 2), 500)
     f_curve = xi0_fit / xi_curve
@@ -193,21 +193,21 @@ def plot_results(f_all: np.ndarray, p_all: np.ndarray,
 
     plt.figure(figsize=(10,9))
 
-    # 数据点（不包括零标准）
+    # data points (excluding the zero standard)
     plt.scatter(xi_unlabeled, p_all[1:], color='#c1121f', s=60,
                 label='Data', zorder=3)
 
-    # 零标准点：用模型预测值标注，并注明实测值
+    # zero standard: annotated with the model prediction and the measured value
     plt.scatter([xi_zero], [p_zero_model], color='#669bbc', s=60,
                 label=f'Zero standard (model: {p_zero_model:.4f})', zorder=3)
     plt.annotate(f'Actual: {p_all[0]:.4f}', xy=(xi_zero, p_zero_model),
                  xytext=(-30, -20), textcoords='offset points',
                  fontsize=14, color='blue')
 
-    # 自由 κ 拟合曲线
+    # free-κ fitted curve
     plt.plot(xi_curve, p_curve, 'b-', lw=2, label='TCS fit (κ-free)')
 
-    # 两条固定 κ 的代表曲线：κ=0.1 和 κ=100
+    # two representative fixed-κ curves: κ=0.1 and κ=100
     for k_test, color, style in [(0.1, 'gray', ':'), (100, 'darkgreen', '--')]:
         popt_k, _ = curve_fit(
             lambda f, xi0, xi_star: tcs_competitive(f, k_test, xi0, xi_star),
@@ -219,7 +219,7 @@ def plot_results(f_all: np.ndarray, p_all: np.ndarray,
         plt.plot(xi_curve, p_curve_k, color=color, lw=1.5, linestyle=style,
                  label=f'TCS fit (κ={k_test} fixed)', alpha=0.7)
 
-    # 参数文本框
+    # parameter text box
     param_text = (
         r"$\kappa \geq$" + f" {ci['ci_lower'][0]:.2f} " +
         r"(one-sided, 95% CI)" + "\n"
@@ -249,12 +249,12 @@ def plot_results(f_all: np.ndarray, p_all: np.ndarray,
 
 
 # ==========================================================
-# 8. Excel 输出（SI Table 2）
+# 8. Excel output (SI Table 2)
 # ==========================================================
 def export_excel(f_all: np.ndarray, p_all: np.ndarray,
                  fit: Dict[str, Any], ci: Dict[str, np.ndarray],
                  sweep: list, output_excel: str = 'SI_Table_2.xlsx'):
-    """生成多工作表的 Excel 报告。"""
+    """Generate a multi-sheet Excel report."""
     try:
         from openpyxl import Workbook
         from openpyxl.styles import Font, PatternFill
@@ -340,7 +340,7 @@ def export_excel(f_all: np.ndarray, p_all: np.ndarray,
         note = "fail" if np.isnan(r2_k) else "OK"
         ws4.append([k_test, r2_k, xi0_k, xi_star_k, note])
 
-    # 动态确定 plateau 区间
+    # determine the plateau interval dynamically
     valid = [(k, r2_k) for (k, r2_k, _, _) in sweep if not np.isnan(r2_k)]
     # 0.98 threshold: <2% variance increase relative to the best fit,
     # well within experimental noise for 6-point RIA data
@@ -409,7 +409,7 @@ def export_excel(f_all: np.ndarray, p_all: np.ndarray,
 
 
 # ==========================================================
-# 9. 主程序
+# 9. Main program
 # ==========================================================
 def main():
     parser = argparse.ArgumentParser(
@@ -422,10 +422,10 @@ def main():
                         help="Output Excel path")
     args = parser.parse_args()
 
-    # ---- 加载数据 ----
+    # ---- load data ----
     f_all, p_all = load_yalow1960_data()
 
-    # ---- 自由 κ 拟合 ----
+    # ---- free-κ fit ----
     fit = fit_model(f_all, p_all)
     kappa_fit, xi0_fit, xi_star_fit = fit['popt']
     perr = fit['perr']
@@ -433,7 +433,7 @@ def main():
     dw = fit['dw']
 
     print("=" * 60)
-    print("TCS 竞争法严格方程拟合（有限 κ）")
+    print("Exact TCS competition-equation fit (finite κ)")
     print("=" * 60)
     print(f"κ   = {kappa_fit:.2f} ± {perr[0]:.2f}")
     print(f"ξ₀  = {xi0_fit:.4f} ± {perr[1]:.4f}")
@@ -442,7 +442,7 @@ def main():
     print(f"DW  = {dw:.4f}")
     print("=" * 60)
 
-    # ---- Goodness-of-fit 附加指标 ----
+    # ---- additional goodness-of-fit metrics ----
     print(f"\nGoodness-of-fit (additional metrics):")
     print(f"  RMSE       = {fit['rmse']:.6f}   (on 0-1 bound-fraction scale)")
     print(f"  MAE        = {fit['mae']:.6f}")
@@ -460,7 +460,7 @@ def main():
     print(f"ξ₀  = {xi0_fit:.2f}  [{ci_lower[1]:.2f}, {ci_upper[1]:.2f}]")
     print(f"ξ*  = {xi_star_fit:.2f}  [{ci_lower[2]:.2f}, {ci_upper[2]:.2f}]")
 
-    # ---- κ 不可辨识性分析 ----
+    # ---- κ identifiability analysis ----
     print("\n" + "=" * 60)
     print("κ unidentifiability analysis (Yalow 1960 RIA)")
     print("=" * 60)
@@ -500,7 +500,7 @@ def main():
     print(f"    shape constrains the RATIOS but not the absolute "
           f"molecular numbers.")
 
-    # ---- κ 扫描 ----
+    # ---- κ scan ----
     print("\n" + "=" * 60)
     print("Sensitivity to κ (R² vs fixed-κ)")
     print("=" * 60)
@@ -515,7 +515,7 @@ def main():
             print(f"{k_test:<12.4g} {r2_k:<12.6f} "
                   f"{xi0_k:<10.4f} {xi_star_k:<10.4f}")
 
-    # 动态计算 R² 变化范围
+    # compute the R² variation range dynamically
     valid_r2 = [r2_k for (_, r2_k, _, _) in sweep if not np.isnan(r2_k)]
     if valid_r2:
         r2_spread = max(valid_r2) - min(valid_r2)
@@ -526,15 +526,15 @@ def main():
         print(f"confirming that the Yalow displacement curve cannot "
               f"distinguish κ regimes.")
 
-    # ---- 零标准点检查 ----
+    # ---- zero-standard check ----
     p_zero_model = fit['p_zero_model']
     print(f"\nZero standard: actual p*={p_all[0]:.4f}, "
           f"model p*={p_zero_model:.4f}")
 
-    # ---- 绘图 ----
+    # ---- plotting ----
     plot_results(f_all, p_all, fit, ci, sweep, output_path=args.figure)
 
-    # ---- Excel 输出 ----
+    # ---- Excel output ----
     if not args.no_excel:
         export_excel(f_all, p_all, fit, ci, sweep, output_excel=args.excel)
 

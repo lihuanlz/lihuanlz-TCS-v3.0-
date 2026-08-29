@@ -2,16 +2,16 @@
 """
 Created on Tue Jul  7 17:19:01 2026
 
-@author: lihua
+@author: lihuan
 """
 
 # -*- cRFUing: utf-8 -*-
 """
-三组联合拟合：共享 ξ₀，每组独立 A, κ（D 锁定为实测空白）
-改进版 v2:
-  - D 锁定为实测 blank RFU（不再作为 MCMC 参数）
-  - 8 个 MCMC 参数（xi0, A1, k1, A2, k2, A3, k3, log_sigma）
-  - 4PL/5PL 比较 + bootstrap CI + 7 个 sheet Excel 导出
+Joint fit of three groups: shared ξ₀, independent A and κ per group (D locked to the measured blank)
+Improved version v2:
+  - D locked to the measured blank RFU (no longer an MCMC parameter)
+  - 8 MCMC parameters (xi0, A1, k1, A2, k2, A3, k3, log_sigma)
+  - 4PL/5PL comparison + bootstrap CI + 7-sheet Excel export
 """
 
 import numpy as np
@@ -24,15 +24,15 @@ warnings.filterwarnings('ignore')
 try:
     import emcee
 except ImportError:
-    raise ImportError("请先安装 emcee: pip install emcee")
+    raise ImportError("Please install emcee first: pip install emcee")
 
 plt.rcParams['font.family'] = 'Arial'
 
-# ========== 用户设置 ==========
-USE_WEIGHTS = False   # MCMC 使用恒定方差，此选项仅用于最小二乘初始估计
+# ========== User settings ==========
+USE_WEIGHTS = False   # MCMC uses constant variance; this option is only for the least-squares initial estimate
 
-# ========== 数据 ==========
-dil_factors = np.array([1, 2, 4, 8, 16, 32, 64, 1e7])  # 背景用大数
+# ========== Data ==========
+dil_factors = np.array([1, 2, 4, 8, 16, 32, 64, 1e7])  # large number for the background
 
 RFU1 = np.array([
     [2.219, 2.218, 2.215],
@@ -67,13 +67,13 @@ RFU3 = np.array([
     [0.02285, 0.02163, 0.02681]
 ])
 
-# ========== D 锁定为实测 blank（不再作为 MCMC 参数） ==========
+# ========== D locked to the measured blank (no longer an MCMC parameter) ==========
 D1_fixed = float(np.mean(RFU1[-1]))   # ≈ 0.0243
 D2_fixed = float(np.mean(RFU2[-1]))   # ≈ 0.0246
 D3_fixed = float(np.mean(RFU3[-1]))   # ≈ 0.0238
-print(f"D 锁定: D1={D1_fixed:.4f}, D2={D2_fixed:.4f}, D3={D3_fixed:.4f}")
+print(f"D locked: D1={D1_fixed:.4f}, D2={D2_fixed:.4f}, D3={D3_fixed:.4f}")
 
-# 展平数据
+# flatten the data
 y1_flat = RFU1.T.flatten()
 y2_flat = RFU2.T.flatten()
 y3_flat = RFU3.T.flatten()
@@ -83,7 +83,7 @@ dil_repeated = np.tile(dil_factors, 3)
 f_data = np.tile(dil_repeated, 3)
 cond_idx = np.array([0]*24 + [1]*24 + [2]*24)
 
-# ========== TCS 模型 ==========
+# ========== TCS model ==========
 def p_tcs_exact(xi, kappa):
     if kappa <= 0:
         return 0.0
@@ -112,7 +112,7 @@ def predict_global(theta, dil, cond_idx):
     mask3 = (cond_idx == 2); y_pred[mask3] = model(dil[mask3], xi0, A3, D3_fixed, k3)
     return y_pred
 
-# ========== 最小二乘初始估计 ==========
+# ========== Least-squares initial estimate ==========
 xi0_guess = 100
 A1_guess, k1_guess = 2.66, 0.09
 A2_guess, k2_guess = 2.08, 0.01
@@ -127,15 +127,15 @@ lb = [0.1, 0.5, 1e-4, 0.5, 1e-4, 0.1, 1e-4]
 ub = [500, 3.5, 1000, 2.5, 1000, 0.5, 1000]
 x_scale = [10, 1, 1, 1, 1, 0.2, 1]
 
-print("最小二乘初始化...")
+print("Least-squares initialization...")
 res = least_squares(lambda th: predict_global(th, f_data, cond_idx) - y_obs,
                     theta0, bounds=(lb, ub), x_scale=x_scale,
                     loss='linear', method='trf', max_nfev=10000)
 theta_hat = res.x
 sigma_guess = np.std(y_obs - predict_global(theta_hat, f_data, cond_idx))
-print("最小二乘完成，sigma 初始值:", sigma_guess)
+print("Least squares done, initial sigma:", sigma_guess)
 
-# ========== MCMC 设置 ==========
+# ========== MCMC setup ==========
 def log_prior(theta):
     xi0, A1, k1, A2, k2, A3, k3, log_sigma = theta
     if not (0.1 < xi0 < 500): return -np.inf
@@ -157,7 +157,7 @@ def log_probability(theta, dil, cond_idx, y_obs):
         return -np.inf
     return lp + log_likelihood(theta, dil, cond_idx, y_obs)
 
-# 初始参数向量（包括 log_sigma）
+# initial parameter vector (including log_sigma)
 theta_init_mcmc = np.append(theta_hat, np.log(sigma_guess))
 ndim = len(theta_init_mcmc)
 nwalkers = max(50, 2 * ndim)
@@ -167,15 +167,15 @@ burnin = 10000
 np.random.seed(42)
 pos = theta_init_mcmc + 1e-4 * np.random.randn(nwalkers, ndim)
 
-print("开始 MCMC 采样 (emcee)...")
+print("Starting MCMC sampling (emcee)...")
 sampler = emcee.EnsembleSampler(nwalkers, ndim, log_probability,
                                 args=(f_data, cond_idx, y_obs))
 sampler.run_mcmc(pos, nsteps, progress=True)
 
 samples = sampler.get_chain(discard=burnin, flat=True)
-print("采样完成，后验样本量:", samples.shape[0])
+print("Sampling done, posterior sample count:", samples.shape[0])
 
-# 收敛诊断（R-hat 和 ESS）
+# convergence diagnostics (R-hat and ESS)
 try:
     import arviz as az
     idata = az.from_emcee(sampler, var_names=['xi0','A1','k1',
@@ -184,15 +184,15 @@ try:
                                               'log_sigma'])
     rhat = az.rhat(idata)
     ess = az.ess(idata)
-    print("\n收敛诊断 (R-hat):")
+    print("\nConvergence diagnostics (R-hat):")
     print(rhat)
-    print("\n有效样本量 (ESS):")
+    print("\nEffective sample size (ESS):")
     print(ess)
 except ImportError:
-    print("未安装 arviz，无法计算 R-hat 和 ESS，请安装: pip install arviz")
+    print("arviz not installed; cannot compute R-hat and ESS. Install with: pip install arviz")
     rhat = ess = None
 
-# 后验中位数和 95% HDI（前 7 个是物理参数）
+# posterior medians and 95% HDI (the first 7 are physical parameters)
 theta_mcmc = np.median(samples[:, :7], axis=0)
 sigma_mcmc = np.exp(np.median(samples[:, 7]))
 lower = np.percentile(samples[:, :7], 2.5, axis=0)
@@ -204,14 +204,14 @@ xi0_hat = theta_mcmc[0]
 A1, k1 = theta_mcmc[1], theta_mcmc[2]
 A2, k2 = theta_mcmc[3], theta_mcmc[4]
 A3, k3 = theta_mcmc[5], theta_mcmc[6]
-D1, D2, D3 = D1_fixed, D2_fixed, D3_fixed  # 锁定为实测空白
+D1, D2, D3 = D1_fixed, D2_fixed, D3_fixed  # locked to the measured blank
 
 y_pred = predict_global(theta_mcmc, f_data, cond_idx)
 residuals_final = y_obs - y_pred
 
 param_names = ['ξ₀', 'A₁', 'κ₁', 'A₂', 'κ₂', 'A₃', 'κ₃']
 print("\n" + "="*60)
-print("MCMC 后验中位数与 95% HDI（D 锁定为实测空白）")
+print("MCMC posterior medians and 95% HDI (D locked to the measured blank)")
 print("="*60)
 for name, val, low, up in zip(param_names, theta_mcmc, lower, upper):
     print(f"{name:5s} = {val:.4f}  (95% HDI: [{low:.4f}, {up:.4f}])")
@@ -221,7 +221,7 @@ print(f"D₃ = {D3:.4f}  (FIXED)")
 print(f"sigma = {sigma_mcmc:.4f}  (95% HDI on log σ: [{lower_sigma:.4f}, {upper_sigma:.4f}])")
 
 
-# ========== 1. 残差诊断图 ==========
+# ========== 1. Residual diagnostic plots ==========
 from scipy.ndimage import gaussian_filter1d
 
 fig_res = plt.figure(figsize=(15, 5))
@@ -268,13 +268,13 @@ plt.subplots_adjust(top=0.85)
 plt.savefig('Extended_Data_Fig_5c.svg', dpi=300)
 plt.show()
 
-# 统计量
+# statistics
 shapiro_stat, shapiro_p = shapiro(residuals_final)
 dw = np.sum(np.diff(residuals_final)**2) / np.sum(residuals_final**2)
 print(f"\nShapiro-Wilk: W={shapiro_stat:.4f}, p={shapiro_p:.4e}")
-print(f"Durbin-Watson: {dw:.4f} (理想值接近2)")
+print(f"Durbin-Watson: {dw:.4f} (ideal value close to 2)")
 
-# ========== 2. R² 输出 ==========
+# ========== 2. R² output ==========
 def r2_group(y_true, y_pred):
     ss_res = np.sum((y_true - y_pred)**2)
     ss_tot = np.sum((y_true - np.mean(y_true))**2)
@@ -289,15 +289,15 @@ R2_3 = r2_group(y3_true, y3_pred)
 R2_total = r2_group(y_obs, y_pred)
 
 print("\n" + "="*60)
-print("三组联合拟合结果（共享 ξ₀，D 固定为实测空白，MCMC 后验中位数）")
+print("Joint fit of the three groups (shared ξ₀, D fixed to the measured blank, MCMC posterior medians)")
 print("="*60)
-print(f"公共 ξ₀ = {xi0_hat:.4f}")
-print(f"组1 (2 µg/mL):   A={A1:.4f}, D={D1:.4f} (FIXED), κ={k1:.4f}, R²={R2_1:.6f}")
-print(f"组2 (0.5 µg/mL): A={A2:.4f}, D={D2:.4f} (FIXED), κ={k2:.4f}, R²={R2_2:.6f}")
-print(f"组3 (0.05 µg/mL):A={A3:.4f}, D={D3:.4f} (FIXED), κ={k3:.4f}, R²={R2_3:.6f}")
-print(f"全局 R² = {R2_total:.6f}")
+print(f"Common ξ₀ = {xi0_hat:.4f}")
+print(f"Group 1 (2 µg/mL):   A={A1:.4f}, D={D1:.4f} (FIXED), κ={k1:.4f}, R²={R2_1:.6f}")
+print(f"Group 2 (0.5 µg/mL): A={A2:.4f}, D={D2:.4f} (FIXED), κ={k2:.4f}, R²={R2_2:.6f}")
+print(f"Group 3 (0.05 µg/mL):A={A3:.4f}, D={D3:.4f} (FIXED), κ={k3:.4f}, R²={R2_3:.6f}")
+print(f"Global R² = {R2_total:.6f}")
 
-# ========== 3. RFU vs 稀释倍数图 ==========
+# ========== 3. RFU vs dilution-factor plot ==========
 dil_plot = np.logspace(0, 7, 200)
 y1_curve = model(dil_plot, xi0_hat, A1, D1, k1)
 y2_curve = model(dil_plot, xi0_hat, A2, D2, k2)
@@ -327,7 +327,7 @@ plt.tight_layout()
 plt.savefig('Shared_xi0_fit.svg', dpi=300)
 plt.show()
 
-# ========== 4. 参数趋势图 ==========
+# ========== 4. Parameter trend plot ==========
 concs = [2.0, 0.5, 0.05]
 As = [A1, A2, A3]; Ds = [D1, D2, D3]; ks = [k1, k2, k3]
 fig2, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(12, 4))
@@ -343,7 +343,7 @@ plt.savefig('Shared_xi0_parameters.svg', dpi=300)
 plt.show()
 
 
-# ========== 5. p vs ξ 主曲线（Fig. 2a） ==========
+# ========== 5. p vs ξ master curve (Fig. 2a) ==========
 group_labels = ['2 µg/mL', '0.5 µg/mL', '0.05 µg/mL']
 markers_d = {'2 µg/mL': 'o', '0.5 µg/mL': 's', '0.05 µg/mL': '^'}
 colors_d = {'2 µg/mL': 'blue', '0.5 µg/mL': 'orange', '0.05 µg/mL': 'green'}
@@ -354,7 +354,7 @@ valid_indices = [i for i, d in enumerate(dil_factors) if d < 1e6]
 # To draw vertical connecting lines later, store median p for each group at each dilution
 p_medians_by_dil = {i: [] for i in valid_indices}
 
-tcrit = t.ppf(0.975, df=2)  # t值 for 3 replicates, 95% CI
+tcrit = t.ppf(0.975, df=2)  # t value for 3 replicates, 95% CI
 
 for grp_idx in range(3):
     A_med = [A1, A2, A3][grp_idx]
@@ -414,7 +414,7 @@ fig3.tight_layout()
 fig3.savefig('Fig.2a_scale_degeneracy.svg', dpi=300)
 plt.show()
 
-# ========== 6. 4PL 和约束 5PL 比较（Extended Data Fig. 5b） ==========
+# ========== 6. 4PL vs constrained 5PL comparison (Extended Data Fig. 5b) ==========
 def fourpl_RFU(dil, A, D, C, B):
     return D + (A - D) / (1.0 + (dil / C) ** B)
 
@@ -581,7 +581,7 @@ for name in boot_4pl:
         print(f"         G = {np.median(G5):.3f} [{np.percentile(G5,2.5):.3f}, {np.percentile(G5,97.5):.3f}]")
 
 
-# 4PL 与 5PL 残差图
+# 4PL and 5PL residual plots
 fig_res_cmp, ax_res = plt.subplots(figsize=(8, 6))
 all_true = []
 all_pred_4 = []
@@ -631,7 +631,7 @@ fig_res_cmp.tight_layout()
 fig_res_cmp.savefig('Extended_Data_Fig_5b_residuals.svg', dpi=300)
 plt.show()
 
-print("\n所有图形已保存。MCMC 后验中位数代替原 Bootstrap 估计，D 锁定为实测空白。")
+print("\nAll figures saved. MCMC posterior medians replace the original bootstrap estimates; D locked to the measured blank.")
 
 
 # ============================================================================
@@ -814,16 +814,16 @@ try:
     print("  6. Pred_vs_Obs      — all 72 points with predictions + residuals")
 
 except ImportError:
-    print("\n[!] openpyxl 未安装。SI Table 1 未保存。请运行: pip install openpyxl")
+    print("\n[!] openpyxl not installed. SI Table 1 was not saved. Run: pip install openpyxl")
 except Exception as e_save:
-    print(f"\n[!] SI Table 1 保存失败: {e_save}")
+    print(f"\n[!] Failed to save SI Table 1: {e_save}")
     import traceback
     traceback.print_exc()
 rmse_tcs = np.sqrt(np.mean((y_obs - y_pred)**2))
 
 
-# ========== Bayesian R²（后验预测R²） ==========
-# 从MCMC后验采样，计算R²的分布
+# ========== Bayesian R² (posterior predictive R²) ==========
+# sample from the MCMC posterior to compute the R² distribution
 n_r2_samples = 2000
 np.random.seed(42)
 r2_idx = np.random.choice(samples.shape[0], n_r2_samples, replace=False)
@@ -836,12 +836,12 @@ for idx in r2_idx:
     theta_s = s[:7]
     y_pred_s = predict_global(theta_s, f_data, cond_idx)
     
-    # 全局R²
+    # global R²
     ss_res = np.sum((y_obs - y_pred_s)**2)
     ss_tot = np.sum((y_obs - np.mean(y_obs))**2)
     r2_posterior_global.append(1 - ss_res / ss_tot)
     
-    # 每组R²
+    # per-group R²
     r2_group_list = []
     for g in range(3):
         mask = (cond_idx == g)
@@ -856,34 +856,34 @@ r2_posterior = np.array(r2_posterior)  # shape: (n_samples, 3)
 r2_posterior_global = np.array(r2_posterior_global)
 
 print("\n" + "="*60)
-print("Bayesian R²（后验预测R²，n=2000 samples）")
+print("Bayesian R² (posterior predictive R², n=2000 samples)")
 print("="*60)
-print(f"全局 Bayesian R² = {np.median(r2_posterior_global):.4f} "
+print(f"Global Bayesian R² = {np.median(r2_posterior_global):.4f} "
       f"[{np.percentile(r2_posterior_global, 2.5):.4f}, "
       f"{np.percentile(r2_posterior_global, 97.5):.4f}]")
-for g, label in enumerate(['组1 (2 µg/mL)', '组2 (0.5 µg/mL)', '组3 (0.05 µg/mL)']):
+for g, label in enumerate(['Group 1 (2 µg/mL)', 'Group 2 (0.5 µg/mL)', 'Group 3 (0.05 µg/mL)']):
     r2_g = r2_posterior[:, g]
     print(f"{label}: Bayesian R² = {np.median(r2_g):.4f} "
           f"[{np.percentile(r2_g, 2.5):.4f}, "
           f"{np.percentile(r2_g, 97.5):.4f}]")
 
-# 对比点估计R²
-print(f"\n对比（点估计R²）:")
-print(f"  全局 R² = {R2_total:.4f}")
-print(f"  组1 R² = {R2_1:.4f}")
-print(f"  组2 R² = {R2_2:.4f}")
-print(f"  组3 R² = {R2_3:.4f}")
+# comparison with the point-estimate R²
+print(f"\nComparison (point-estimate R²):")
+print(f"  Global R² = {R2_total:.4f}")
+print(f"  Group 1 R² = {R2_1:.4f}")
+print(f"  Group 2 R² = {R2_2:.4f}")
+print(f"  Group 3 R² = {R2_3:.4f}")
 print(f"RMSE TCS global fit = {rmse_tcs:.6f}")
 
 
 # ============================================================================
-# LoB / LoD / LoQ 计算 (S2a formulas, analog assay)
-# 追加到 v2 代码末尾（print(f"RMSE TCS global fit = {rmse_tcs:.6f}") 之后）
-# 适配 v2 参数排列: [xi0, A1, k1, A2, k2, A3, k3, log_sigma] (8列)
+# LoB / LoD / LoQ calculation (S2a formulas, analog assay)
+# appended to the end of the v2 code (after print(f"RMSE TCS global fit = {rmse_tcs:.6f}"))
+# adapted to the v2 parameter order: [xi0, A1, k1, A2, k2, A3, k3, log_sigma] (8 columns)
 # ============================================================================
 
-# --- 物理常数 ---
-V_well = 100e-6      # 反应体积 (L)
+# --- physical constants ---
+V_well = 100e-6      # reaction volume (L)
 N_A = 6.022e23
 MW_ab = 150000       # goat anti-mouse IgG MW (g/mol)
 
@@ -891,7 +891,7 @@ MW_ab = 150000       # goat anti-mouse IgG MW (g/mol)
 # 2 mg/mL × (1/500 dilution) × 100 μL = 0.4 μg = 0.4e-6 g
 M0 = (0.4e-6 / MW_ab) * N_A  # ≈ 1.606e12 molecules
 
-# 浓度换算函数
+# concentration conversion functions
 def mol_to_ngmL(M):
     """molecules -> ng/mL"""
     g_per_L = M / (V_well * N_A) * MW_ab  # g/L
@@ -904,7 +904,7 @@ print("LoB / LoD / LoQ (S2a formulas, Eq. S2a.22/17/24)")
 print(f"{'='*80}")
 print(f"M₀ = {M0:.3e} molecules = {M0_ngmL:.1f} ng/mL (= 4 μg/mL, 2 mg/mL × 1/500)")
 
-# --- σ_S 估计 (per S2a.10: local σ for each application) ---
+# --- σ_S estimate (per S2a.10: local σ for each application) ---
 # LoB: blank σ;  LoD/LoQ: low-conc σ;  CV: per-point σ
 sd_blank_1 = np.std(RFU1[-1], ddof=1)
 sd_blank_2 = np.std(RFU2[-1], ddof=1)
@@ -932,12 +932,12 @@ print(f"  Low-conc dil=64 (pooled): {sigma_S_low:.6f}  "
 kappa_Omega = M0 / xi0_hat
 print(f"\nκΩ = M₀/ξ₀ = {kappa_Omega:.3e}")
 
-# --- 后验采样 for CI ---
+# --- posterior sampling for CI ---
 n_loq_samples = min(2000, samples.shape[0])
 np.random.seed(42)
 loq_idx = np.random.choice(samples.shape[0], n_loq_samples, replace=False)
 
-# v2 参数排列: [xi0, A1, k1, A2, k2, A3, k3, log_sigma] (8 columns)
+# v2 parameter order: [xi0, A1, k1, A2, k2, A3, k3, log_sigma] (8 columns)
 # G1: A=samples[:,1], k=samples[:,2], D=D1_fixed
 # G2: A=samples[:,3], k=samples[:,4], D=D2_fixed
 # G3: A=samples[:,5], k=samples[:,6], D=D3_fixed
@@ -950,7 +950,7 @@ print(f"  Eq. S2a.17: LoD (c=3.29,  σ_p̂ from low-conc)")
 print(f"  Eq. S2a.24: LoQ (c=5.0,   σ_p̂ from low-conc)")
 print(f"{'='*80}")
 
-# 存储结果用于 Excel
+# store results for Excel
 lob_lod_loq_results = []
 
 for g, (A_g, k_g, D_g, lbl) in enumerate([
@@ -1171,21 +1171,21 @@ except Exception as e:
 
 # -*- coding: utf-8 -*-
 """
-Profile Likelihood 分析 — 接在 scale degeneracy4-0固定背景.py 之后运行
+Profile Likelihood analysis — run after the main script of this file
 
-用法：
-  1. 先运行原代码（确保所有变量在内存中）
-  2. 然后运行本文件：exec(open('profile_likelihood_addon.py').read())
-     或者直接：python3 profile_likelihood_addon.py
-     （会自动 exec 原代码加载数据和模型）
+Usage:
+  1. Run the original code first (make sure all variables are in memory)
+  2. Then run this file: exec(open('profile_likelihood_addon.py').read())
+     or directly: python3 profile_likelihood_addon.py
+     (it will automatically exec the original code to load data and the model)
 
-输出：
+Output:
   - profile_1d_all.svg       : 1D profile log-likelihood (4 panels)
   - profile_2D_xi0_kappa1.svg: 2D profile contour (xi0, kappa1)
   - profile_summary.txt      : summary table
   - profile_data.npz         : raw data
 
-依赖：numpy, scipy, matplotlib（原代码已有）
+Dependencies: numpy, scipy, matplotlib (already used by the original code)
 """
 
 import numpy as np
@@ -1196,20 +1196,20 @@ from scipy.optimize import minimize
 import os
 
 # ============================================================================
-# 1. 加载原代码的数据和模型
+# 1. Load data and model from the original code
 # ============================================================================
 print("=" * 70)
 print("Profile Likelihood Analysis")
 print("=" * 70)
 
-# 如果独立运行，先 exec 原代码
+# if run standalone, exec the original code first
 if 'y_obs' not in dir():
     print("Loading data from original script...")
     # Try common filenames with utf-8 encoding
     _candidates = [
-        'scale degeneracy4-0固定背景.py',
-        'scale degeneracy4.0固定背景.py',
-        'Scale Degeneracy5.0 固定背景+profile likehood验证时间长.py',
+        'SI_Table_1_and_Fig2a_IFv3.py',
+        # legacy local-development filenames removed for the public release;
+        # standalone use: simply run this file top to bottom
     ]
     _loaded = False
     for _fname in _candidates:
@@ -1238,20 +1238,20 @@ if 'y_obs' not in dir():
             "or run the original script first then this one.")
 
 # ============================================================================
-# 2. 定义 profile likelihood 函数
+# 2. Define the profile likelihood function
 # ============================================================================
 
 def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
                             dil, cond_idx, y_obs, sigma_hat):
     """
-    负 log-likelihood，固定一个参数，优化其余。
+    Negative log-likelihood: fix one parameter and optimize the rest.
 
-    free_params: 除固定参数外的 7 个参数
-                 [A1, k1, A2, k2, A3, k3]  (xi0 固定时)
-                 [xi0, A1, A2, k2, A3, k3] (k1 固定时)
-    fixed_param_name: 'xi0' 或 'kappa1' 等
-    fixed_value: 固定值
-    sigma_hat: 固定 sigma（用 MCMC 或 least-squares 的估计值）
+    free_params: the 7 parameters other than the fixed one
+                 [A1, k1, A2, k2, A3, k3]  (when xi0 is fixed)
+                 [xi0, A1, A2, k2, A3, k3] (when k1 is fixed)
+    fixed_param_name: 'xi0' or 'kappa1', etc.
+    fixed_value: the fixed value
+    sigma_hat: fixed sigma (from the MCMC or least-squares estimate)
     """
     if fixed_param_name == 'xi0':
         xi0 = fixed_value
@@ -1268,7 +1268,7 @@ def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
     else:
         raise ValueError(f"Unknown fixed_param: {fixed_param_name}")
 
-    # 边界检查
+    # boundary check
     if xi0 <= 0.1 or xi0 > 500: return 1e15
     if A1 <= 0.5 or A1 > 3.5: return 1e15
     if k1 <= 1e-4 or k1 > 1000: return 1e15
@@ -1281,24 +1281,24 @@ def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
     y_pred = predict_global(theta_full, dil, cond_idx)
     n = len(y_obs)
     ll = -0.5 * np.sum(((y_obs - y_pred) / sigma_hat) ** 2) - n * np.log(sigma_hat)
-    return -ll  # 返回负 log-likelihood（用于最小化）
+    return -ll  # return the negative log-likelihood (for minimization)
 
 
 # def profile_likelihood_1d(param_name, param_grid, theta_hat, sigma_hat,
 #                           dil, cond_idx, y_obs):
 #     """
-#     对单个参数做 profile likelihood。
+#     Profile likelihood for a single parameter.
 
-#     返回: (param_grid, profile_ll) — 每个 grid 点的 profile log-likelihood
+#     Return: (param_grid, profile_ll) — profile log-likelihood at each grid point
 #     """
 #     n_free = 6
 #     profile_ll = np.full(len(param_grid), -np.inf)
 
-#     # 从最优解提取各参数
+#     # extract the parameters from the optimum
 #     xi0_opt, A1_opt, k1_opt, A2_opt, k2_opt, A3_opt, k3_opt = theta_hat
 
 #     for i, val in enumerate(param_grid):
-#         # 初始猜测：最优解（去掉固定参数）
+#         # initial guess: the optimum (excluding the fixed parameter)
 #         if param_name == 'xi0':
 #             x0 = [A1_opt, k1_opt, A2_opt, k2_opt, A3_opt, k3_opt]
 #         elif param_name == 'kappa1':
@@ -1308,9 +1308,9 @@ def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
 #         elif param_name == 'kappa3':
 #             x0 = [xi0_opt, A1_opt, k1_opt, A2_opt, k2_opt, A3_opt]
 
-#         # 稍微扰动初始值，避免卡在已经是最优的点
+#         # perturb the initial value slightly to avoid getting stuck at the optimum
 #         x0 = np.array(x0) * (1.0 + 1e-3 * np.random.randn(len(x0)))
-#         x0 = np.array(x0) * (1.0 + 1e-1 * np.random.randn(len(x0)))  # 增大到 10% 扰动
+#         x0 = np.array(x0) * (1.0 + 1e-1 * np.random.randn(len(x0)))  # increase to 10% perturbation
 
 #         try:
 #             res = minimize(
@@ -1320,7 +1320,7 @@ def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
 #                 options={'maxiter': 5000, 'xatol': 1e-8, 'fatol': 1e-8}
 #             )
 #             if res.success or res.fun < 1e14:
-#                 profile_ll[i] = -res.fun  # 转回正 log-likelihood
+#                 profile_ll[i] = -res.fun  # convert back to positive log-likelihood
 #         except Exception as e:
 #             print(f"  {param_name}={val:.4g}: optimization failed ({e})")
 
@@ -1332,14 +1332,14 @@ def neg_log_likelihood_free(free_params, fixed_param_name, fixed_value,
 def profile_likelihood_1d(param_name, param_grid, theta_hat, sigma_hat,
                           dil, cond_idx, y_obs):
     """
-    稳健版 profile likelihood：多起点 + 随机跳跃，避免局部凹陷
+    Robust profile likelihood: multi-start + random jumps to avoid local dips
     """
     profile_ll = np.full(len(param_grid), -np.inf)
 
     xi0_opt, A1_opt, k1_opt, A2_opt, k2_opt, A3_opt, k3_opt = theta_hat
 
     for i, val in enumerate(param_grid):
-        # ---- 构建多组初始猜测 ----
+        # ---- build multiple initial guesses ----
         starts = []
         if param_name == 'xi0':
             base = [A1_opt, k1_opt, A2_opt, k2_opt, A3_opt, k3_opt]
@@ -1352,15 +1352,15 @@ def profile_likelihood_1d(param_name, param_grid, theta_hat, sigma_hat,
         else:
             raise ValueError(f"Unknown param: {param_name}")
 
-        # 1) 标准起点：最优解 + 小扰动
+        # 1) standard start: optimum + small perturbation
         starts.append(np.array(base) * (1.0 + 1e-4 * np.random.randn(len(base))))
-        # 2) 10% 扰动起点
+        # 2) 10% perturbation start
         for _ in range(3):
             starts.append(np.array(base) * (1.0 + 0.1 * np.random.randn(len(base))))
-        # 3) 更大幅度扰动（30%）
+        # 3) larger perturbation (30%)
         for _ in range(3):
             starts.append(np.array(base) * (1.0 + 0.3 * np.random.randn(len(base))))
-        # 4) 完全随机的合理值（在参数允许范围内）
+        # 4) fully random plausible values (within the allowed parameter ranges)
         for _ in range(3):
             if param_name == 'xi0':
                 rnd = [np.random.uniform(0.5, 3.5),   # A1
@@ -1376,9 +1376,9 @@ def profile_likelihood_1d(param_name, param_grid, theta_hat, sigma_hat,
                        np.random.uniform(1e-4, 1000), # k2
                        np.random.uniform(0.1, 0.5),   # A3
                        np.random.uniform(1e-4, 1000)] # k3
-            # 类似处理其他参数...
+            # handle the other parameters similarly...
             else:
-                rnd = base  # 简单回退
+                rnd = base  # simple fallback
             starts.append(np.array(rnd))
 
         best_ll = -np.inf
@@ -1409,16 +1409,16 @@ def profile_likelihood_2d(param_x_name, param_y_name,
                           x_grid, y_grid, theta_hat, sigma_hat,
                           dil, cond_idx, y_obs):
     """
-    2D profile likelihood: 固定两个参数，优化其余 5 个。
-    返回 2D 矩阵 of profile log-likelihood。
+    2D profile likelihood: fix two parameters and optimize the other 5.
+    Return a 2D matrix of profile log-likelihood.
     """
     ll_2d = np.full((len(y_grid), len(x_grid)), -np.inf)
     xi0_opt, A1_opt, k1_opt, A2_opt, k2_opt, A3_opt, k3_opt = theta_hat
 
     for j, xval in enumerate(x_grid):
         for i, yval in enumerate(y_grid):
-            # 固定 param_x = xval, param_y = yval
-            # 剩余 5 个 free params
+            # fix param_x = xval, param_y = yval
+            # the remaining 5 free params
             if param_x_name == 'xi0' and param_y_name == 'kappa1':
                 x0 = [A1_opt, A2_opt, k2_opt, A3_opt, k3_opt]
                 free_names = ['A1', 'A2', 'k2', 'A3', 'k3']
@@ -1467,18 +1467,18 @@ def profile_likelihood_2d(param_x_name, param_y_name,
 
 
 # ============================================================================
-# 3. 运行 Profile Likelihood
+# 3. Run Profile Likelihood
 # ============================================================================
 
-# 用 least-squares 结果作为最优值（如果 MCMC 跑完了也可以用 MCMC 中位数）
+# use the least-squares result as the optimum (MCMC medians can also be used once MCMC has finished)
 # try:
 #     theta_hat
 # except NameError:
 #     theta_hat = None
 
-# 优先使用 MCMC 后验中位数（全局最优），若无则回退到 LS
+# prefer MCMC posterior medians (global optimum); fall back to LS
 try:
-    theta_hat = theta_mcmc   # 来自主代码，7 个参数
+    theta_hat = theta_mcmc   # from the main code, 7 parameters
     print(f"[!] Using MCMC posterior median as profile start: {theta_hat}")
 except NameError:
     try:
@@ -1490,18 +1490,18 @@ if theta_hat is None:
     print("ERROR: theta_hat not found. Run the original script first.")
     raise RuntimeError
 
-# sigma 估计
+# sigma estimate
 sigma_hat = float(np.std(y_obs - predict_global(theta_hat, f_data, cond_idx)))
 print(f"\nUsing theta_hat = {theta_hat}")
 print(f"sigma_hat = {sigma_hat:.6f}")
 
-# 最优 log-likelihood
+# optimal log-likelihood
 y_pred_opt = predict_global(theta_hat, f_data, cond_idx)
 n_data = len(y_obs)
 ll_max = -0.5 * np.sum(((y_obs - y_pred_opt) / sigma_hat) ** 2) - n_data * np.log(sigma_hat)
 print(f"ll_max = {ll_max:.2f}")
 
-# Wilks 临界值: 2*(ll_max - ll_profile) < chi^2(1, 0.95) = 3.841
+# Wilks critical value: 2*(ll_max - ll_profile) < chi^2(1, 0.95) = 3.841
 chi2_crit = 3.841
 ll_threshold = ll_max - chi2_crit / 2.0
 print(f"95% CI threshold: ll > {ll_threshold:.2f}")
@@ -1537,9 +1537,9 @@ k3_opt = theta_hat[6]
 # k3_grid = np.linspace(k3_range[0], k3_range[1], 81)
 
 
-# κ₃ 后验很宽，上限需覆盖到 1500
+# the κ₃ posterior is wide; the upper bound must extend to 1500
 k3_range_low = max(k3_opt * 0.01, 1e-3)
-k3_range_high = max(k3_opt * 50, 1500)   # 确保包含 MCMC 的 95% HDI 上限
+k3_range_high = max(k3_opt * 50, 1500)   # make sure the MCMC 95% HDI upper bound is covered
 k3_grid = np.linspace(k3_range_low, k3_range_high, 100)
 
 
@@ -1557,11 +1557,11 @@ ll_2d_xi0_k1 = profile_likelihood_2d(
 
 
 # ============================================================================
-# 4. 提取 CI 和 Ridge 斜率
+# 4. Extract CIs and the ridge slope
 # ============================================================================
 
 # def extract_ci_1d(param_grid, profile_ll, ll_max, threshold, param_name):
-#     """从 profile likelihood 提取 CI"""
+#     """Extract the CI from the profile likelihood"""
 #     valid = profile_ll > -np.inf
 #     if not np.any(valid):
 #         return None, None, False
@@ -1577,25 +1577,25 @@ ll_2d_xi0_k1 = profile_likelihood_2d(
 #     return ci_low, ci_high, bounded
 
 def extract_ci_1d(param_grid, profile_ll, ll_max, threshold, param_name):
-    """稳健提取 CI：确保包含最优值"""
+    """Robust CI extraction: make sure the optimum is included"""
     valid = profile_ll > -np.inf
     if not np.any(valid):
         return None, None, False
 
-    # 找到最优值索引（profile 最大值）
+    # find the index of the optimum (profile maximum)
     i_opt = np.argmax(profile_ll)
-    # 向左搜索低于阈值的点
+    # search left for a point below the threshold
     ci_low = None
     for i in range(i_opt, -1, -1):
         if profile_ll[i] < threshold:
-            # 在 i 和 i+1 之间插值
+            # interpolate between i and i+1
             if i < len(param_grid)-1 and profile_ll[i+1] > threshold:
                 frac = (threshold - profile_ll[i]) / (profile_ll[i+1] - profile_ll[i])
                 ci_low = param_grid[i] + frac * (param_grid[i+1] - param_grid[i])
             else:
                 ci_low = param_grid[i]
             break
-    # 向右搜索
+    # search right
     ci_high = None
     for i in range(i_opt, len(param_grid)):
         if profile_ll[i] < threshold:
@@ -1633,9 +1633,9 @@ for name, grid, ll, opt_val in [
 
 # 2D ridge slope
 print("\n--- 2D Ridge Analysis (xi0, kappa1) ---")
-valid_2d = ll_2d_xi0_k1 > ll_max - chi2_crit * 2  # 更宽松的阈值看 ridge
+valid_2d = ll_2d_xi0_k1 > ll_max - chi2_crit * 2  # looser threshold to reveal the ridge
 if np.any(valid_2d):
-    # 找 ridge 上的点（每个 kappa1 列里 ll 最大的 xi0）
+    # find points on the ridge (the xi0 with the highest ll in each kappa1 column)
     ridge_xi0 = []
     ridge_k1 = []
     for j in range(len(k1_2d)):
@@ -1670,7 +1670,7 @@ else:
 
 
 # ============================================================================
-# 5. 绘图
+# 5. Plotting
 # ============================================================================
 
 plt.rcParams['font.family'] = 'Times New Roman'
@@ -1728,7 +1728,7 @@ except Exception as e:
     pcm = ax.pcolormesh(xi0_2d, k1_2d, delta_ll_masked, shading='auto', cmap='YlOrRd')
     plt.colorbar(pcm, ax=ax, label='Delta log-L')
 
-# 最优点
+# optimal point
 ax.plot(xi0_opt, k1_opt, 'k*', markersize=15, label='MLE')
 
 # Ridge
@@ -1750,7 +1750,7 @@ plt.close()
 
 
 # ============================================================================
-# 6. 保存数据和汇总
+# 6. Save data and summary
 # ============================================================================
 
 np.savez('profile_data.npz',
@@ -1766,7 +1766,7 @@ np.savez('profile_data.npz',
          ridge_slope=slope if slope is not None else np.nan)
 print("Saved: profile_data.npz")
 
-# 汇总表
+# summary table
 with open('profile_summary.txt', 'w', encoding='utf-8') as f:
     f.write("=" * 70 + "\n")
     f.write("Profile Likelihood Summary\n")
@@ -1810,7 +1810,7 @@ with open('profile_summary.txt', 'w', encoding='utf-8') as f:
     f.write("Interpretation:\n")
     f.write("=" * 70 + "\n\n")
 
-    # 自动判断
+    # auto-detect
     xi0_res = results.get('xi0', (None, None, None, False))
     if xi0_res[3]:  # bounded
         f.write("xi0: BOUNDED CI -> xi0 is practically identifiable\n")

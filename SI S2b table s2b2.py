@@ -1,9 +1,4 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Jul 29 20:29:53 2026
 
-@author: lihua
-"""
 
 
 # -*- coding: utf-8 -*-
@@ -30,7 +25,7 @@ v5 fixes (2026-07-29):
      guarded rows are annotated with the confirmed asymptotics
      ICC_4L -> +1, VR4L -> N.
 
-@author: lihua
+@author: lihuan
 """
 
 #!/usr/bin/env python3

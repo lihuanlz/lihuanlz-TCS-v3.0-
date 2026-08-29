@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 30 10:15:28 2026
 
-@author: lihua
-"""
 
 # -*- coding: utf-8 -*-
 """
 Created on Wed Jul 29 21:24:35 2026
 
-@author: lihua
+@author: lihuan
 """
 
 # -*- coding: utf-8 -*-
@@ -294,8 +289,8 @@ ax_bot.legend(fontsize=11, loc='upper right', ncol=2)
 #             fontsize=18, fontweight='bold', va='bottom', ha='right')
 
 plt.tight_layout(rect=[0, 0, 1, 0.96])
-plt.savefig('CV_exact_vs_R1.svg', dpi=300, bbox_inches='tight')
+plt.savefig('Fig_S2b_1.svg', dpi=300, bbox_inches='tight')
 
 plt.show()
 
-print("\nDone: CV_exact_vs_R1.svg")
+print("\nDone: Fig_S2b_1.svg")

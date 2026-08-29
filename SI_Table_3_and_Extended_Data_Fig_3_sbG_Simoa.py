@@ -44,10 +44,10 @@ print("=" * 80)
 
 
 # ============================================================================
-# 1. 实验参数
+# 1. Experimental parameters
 # ============================================================================
-N_beads = 400000            # 每孔珠子数
-V = 100e-6                  # 反应体积 (L)
+N_beads = 400000            # beads per well
+V = 100e-6                  # reaction volume (L)
 N_A = 6.022e23
 
 # ---------- sβG Simoa 2010 dataset ----------
@@ -58,32 +58,32 @@ P_pos = np.array([0.0016, 0.0086, 0.0099, 0.0413, 0.0713, 0.4461, 0.8183,
 meas_cv = np.array([87, 75, 63, 10, 15, 1, 5, 2, 5, 3, 1])
 poisson_cv = np.array([122, 55, 46, 21, 16, 7, 5, 2, 2, 1, 1])
 
-# 估算总珠子数 (取中位数作为固定值)
+# Estimate total bead count (use the median as a fixed value)
 n_est = k_avg / (P_pos / 100)
 n_const = np.median(n_est)
 print(f"Estimated bead count per well: median = {n_const:.0f}")
 
-# 计算 AEB 和 P_train
+# Compute AEB and P_train
 AEB_train = -np.log(np.maximum(1 - k_avg / n_const, 1e-12))
 P_train = k_avg / n_const
 n_train = np.full_like(AEB_train, n_const, dtype=float)
 
-# 浓度转换为每珠期望分子数 μ
+# Convert concentration to expected molecules per bead μ
 c_molL = conc_aM * 1e-18
 mu_train = c_molL * V * N_A / N_beads
 
-# 权重 (used for R² and for visual residual scaling, NOT for fit)
+# Weights (used for R² and for visual residual scaling, NOT for the fit)
 P_obs_for_var = 1 - np.exp(-AEB_train)
 var_AEB = P_obs_for_var / (n_train * (1 - P_obs_for_var + 1e-10)) + 1e-10
 weights_AEB = 1.0 / var_AEB
 
-# 测试集（无数据，置空）
+# Test set (no data, left empty)
 test_AEB = np.array([])
 test_n = np.array([])
 test_k = np.array([])
 
 # ============================================================================
-# 2. 模型定义
+# 2. Model definitions
 # ============================================================================
 mask_zero = mu_train == 0
 A_4pl = np.mean(AEB_train[mask_zero])
@@ -381,7 +381,7 @@ for i in range(n_all):
         if np.any(mu_loo == 0):
             A_loo = np.mean(AEB_train[idx_keep][mu_loo == 0])
         else:
-            # 留出的是零浓度点：用剩余数据的最低AEB作为背景估计
+            # the held-out point is the zero-concentration one: use the lowest AEB of the remaining data as the background estimate
             A_loo = np.min(AEB_train[idx_keep])
 
         
@@ -589,7 +589,7 @@ print(df_tcs_quant.to_string(index=False))
 df_tcs_quant.to_csv('TCS_per_point_quantification.csv', index=False)
 print("\nResults saved to TCS_per_point_quantification.csv")
 
-# 为绘图准备数据
+# Prepare data for plotting
 plot_tcs_data = []
 for i in range(len(conc_aM)):
     if conc_aM[i] == 0:
@@ -899,7 +899,7 @@ print(f"{'Model':<6} {'LoB (molecules)':<20} {'LoD (molecules)':<20} "
 print("-" * 90)
 print(f"{'R2':<6} {M_lob_R2:<20.1f} {M_lod_R2:<20.1f} {M_loq_low_R2:<22.1f} {M_loq_high_R2:<22.0f}")
 print(f"{'R3':<6} {M_lob_R3:<20.1f} {M_lod_R3:<20.1f} {M_loq_low_R3:<22.1f} {'---':<22}")
-print("\n注：R2 LoQ 为数值解，R3 LoQ 为解析近似；R3 无高浓度根。")
+print("\nNote: R2 LoQ is a numerical solution; R3 LoQ is an analytical approximation; R3 has no high-concentration root.")
 
 
 # ============================================================================
@@ -1059,8 +1059,8 @@ axes_s1[1].set_title('TCS')
 axes_s1[1].grid(False)
 plt.tight_layout()
 plt.show()
-fig_s1.savefig('Fig_S1_sβG.png', dpi=300)
-print("\nSupplementary figure saved: Fig_S1_sβG.png")
+fig_s1.savefig('Fig_S1_sβG.svg', dpi=300)
+print("\nSupplementary figure saved: Fig_S1_sβG.svg")
 
 
 # ============================================================================
@@ -1445,7 +1445,7 @@ print("R1 least-squares initialization...")
 #                       args=(mu_R1_all, k_R1_all, n_R1_all),
 #                       bounds=bounds_R1, method='L-BFGS-B',
 #                       options={'maxiter': 5000, 'eps': 1e-8})
-# 全局优化：differential_evolution（不依赖单一起点）
+# Global optimization: differential_evolution (does not rely on a single starting point)
 from scipy.optimize import differential_evolution
 res_R1 = differential_evolution(
     neg_loglik_R1,
@@ -1454,10 +1454,10 @@ res_R1 = differential_evolution(
     seed=42,
     maxiter=1000,
     tol=1e-10,
-    popsize=30,       # 种群大小=30×参数数=90
+    popsize=30,       # population size = 30 × number of parameters = 90
     mutation=(0.5, 1.5),
     recombination=0.9,
-    polish=True,      # 最后自动用L-BFGS-B精细优化
+    polish=True,      # final refinement with L-BFGS-B
     workers=1,
 )
 
@@ -1543,7 +1543,7 @@ results_R1 = sampler_R1.results
 
 
 
-# 用nested sampling的全局最优替换L-BFGS-B的局部最优
+# Replace the L-BFGS-B local optimum with the nested-sampling global optimum
 logL_R1_global = results_R1.logl.max()
 if logL_R1_global > logL_R1:
     print(f"\n*** Global logL from nested sampling: {logL_R1_global:.2f}")
@@ -1854,7 +1854,7 @@ if corner is not None:
     )
     plt.suptitle('R1 Nested Sampling Posterior - beta Identifiability Test (sβG)',
                  fontsize=16, fontweight='bold')
-    plt.savefig('R1_corner_plot_sbG_nested.png', dpi=300, bbox_inches='tight')
+    plt.savefig('R1_corner_plot_sbG_nested.svg', dpi=300, bbox_inches='tight')
     plt.show()
 
 # ---- Final verdict ----

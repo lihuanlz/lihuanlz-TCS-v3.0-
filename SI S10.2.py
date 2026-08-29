@@ -683,7 +683,7 @@ def figure_panels_A_F():
     ax = axes[0, 0]
     xi = np.logspace(-2, 2, 200)
     for k in [100, 10, 1, 0.1, 0.01]:
-        ax.plot(xi, [tcs_unit_site(v, k) for v in xi], label=f'$\kappa={k}$')
+        ax.plot(xi, [tcs_unit_site(v, k) for v in xi], label=rf'$\kappa={k}$')
     ax.set_xscale('log')
     ax.set_xlabel('$\\xi = L_T / K_d$',fontsize=14)
     ax.set_ylabel('$p$',fontsize=14)
@@ -753,10 +753,10 @@ def figure_panels_A_F():
     # for n in [1, 2, 4]:
     #     ax.plot(xi, [tcs_multi_site(v, 1.0, n) for v in xi], label=f'$n={n}$')
         
-        # Figure F 面板中：
+        # In the Figure F panels:
     for n in [1, 2, 4]:
         ax.plot(xi, [tcs_multi_site(v, 1.0, n) for v in xi], label=f'$n={n}$')
-    # kappa=1.0 改为 kappa_R=1.0（数值不变，但语义正确）
+    # kappa=1.0 changed to kappa_R=1.0 (same value, but semantically correct)
 
         
         
@@ -882,8 +882,8 @@ def figure_panels_G_L():
     
         # K: Proof of Scale Degeneracy
     ax = axes[2, 0]
-    xi_scan = np.logspace(-1, 2, 200)                # 直接扫描 ξ
-    # 三个参数组具有相同的 κ = 0.1，因此 p(ξ) 完全一样
+    xi_scan = np.logspace(-1, 2, 200)                # scan ξ directly
+    # All three parameter sets share κ = 0.1, so p(ξ) is identical
     # param_sets = [
     #     (1.0, 10.0, 1.0, r'$\xi = L_T/K_d,\ \kappa = 0.1$'),
     #     (2.0, 20.0, 2.0, r'$\xi = L_T/K_d,\ \kappa = 0.1$'),
@@ -984,7 +984,7 @@ def figure_panels_G_L():
 
     # L: Breaking Scale Degeneracy
     ax = axes[2, 1]
-    L_T_scan = np.logspace(-1, 2, 200)    # ← 补上这一行
+    L_T_scan = np.logspace(-1, 2, 200)    # ← add this line
     K_d_true = 1.0
     R_T_low = 20.0
     R_T_high = 0.05
