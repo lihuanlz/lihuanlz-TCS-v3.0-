@@ -2,7 +2,7 @@
 """
 Created on Thu Jul 23 13:40:29 2026
 
-@author: lihua
+@author: lihuan
 """
 
 """
