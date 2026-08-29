@@ -182,7 +182,8 @@ def run_noisy_demo():
     fig.suptitle('Fig. S9.2. True TCS (black), κ→∞ limit (green dashed), and fits',
                  fontweight='bold', fontsize=14, y=1)
     plt.tight_layout()
-    plt.savefig('SI_S9_Table_S9_1_and_Figure_S9_2.svg', dpi=100)
+
+    plt.savefig('SI_S9_Table_S9_2_and_Figure_S9_2.svg', dpi=100)
     plt.show()
 
 if __name__ == "__main__":
