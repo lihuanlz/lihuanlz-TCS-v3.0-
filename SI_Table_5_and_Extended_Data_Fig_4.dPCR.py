@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 """
 Digital PCR TCS analysis (κ=0, b=0)
-@author: adapted from lihua
+@author: adapted from lihuan
 """
 import numpy as np
 import matplotlib.pyplot as plt

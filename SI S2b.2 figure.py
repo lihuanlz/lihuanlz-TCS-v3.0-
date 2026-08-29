@@ -1,15 +1,10 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 30 19:39:59 2026
 
-@author: lihua
-"""
 
 # -*- coding: utf-8 -*-
 """
 Created on Thu Jul 30 10:23:39 2026
 
-@author: lihua
+@author: lihuan
 """
 
 # -*- coding: utf-8 -*-
