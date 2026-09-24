@@ -560,12 +560,12 @@ def figure2_li_number_collapse(K_nM=1.0, V_uL=100.0,
 
 
 
-    plt.suptitle('Fig. 1d: Universality of the TCS master equation: scale collapse, κ-dependence, and K/Ω tuning',
+    plt.suptitle('Extended Data Fig. 1a: Universality of the TCS master equation: scale collapse, κ-dependence, and K/Ω tuning',
                  fontsize=18, fontweight='bold')
     plt.tight_layout(rect=[0, 0, 1, 0.97])
 
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = os.path.join(output_dir, f"Fig. 1d.svg")
+    filename = os.path.join(output_dir, f"Extended_Data_Fig_1a.svg")
     plt.savefig(filename, format='svg', bbox_inches='tight')
     print(f"Saved Figure 1d: {filename}")
     plt.show()
@@ -897,8 +897,8 @@ if __name__ == "__main__":
     fig2 = figure2_li_number_collapse()
     
     print("\n[3/3] Extended Data Fig. 1: Quantification performance (panels a and b)...")
-    fig3a = figure3_quantification_performance(beta=1000, panel='a')  # ED Fig. 1a: κ=1, β=1000
-    fig3b = figure3_quantification_performance(beta=1, panel='b')      # ED Fig. 1b: κ=1, β=1
+    fig3a = figure3_quantification_performance(beta=1000, panel='b')  # ED Fig. 1d: κ=1, β=1000
+    fig3b = figure3_quantification_performance(beta=1, panel='c')      # ED Fig. 1b: κ=1, β=1
     
     print("\n" + "="*60)
     print("All figures saved in:", output_dir)

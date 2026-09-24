@@ -2,12 +2,12 @@
 
 Machine-checked proofs of the mathematical core of the manuscript's
 Supplementary Information ("Supplementary and additional Material"),
-organized into 11 files, one per SI section or topic.
+organized into 12 files, one per SI section or topic.
 
 ## 1. How to run
 
 Case A: you already have a Lean 4 project with mathlib on your machine.
-Copy the 11 `.lean` files inside `TCS/` into it (do NOT copy the lakefile
+Copy the 12 `.lean` files inside `TCS/` into it (do NOT copy the lakefile
 or the toolchain file, to avoid clashing with your local versions), open
 them in VS Code, and check that no red squiggles appear.
 
@@ -23,7 +23,7 @@ the matching Lean automatically.
 
 ## 2. Verification status
 
-Full build from a clean state: **all 12 modules compile with 0 errors and
+Full build from a clean state: **all 13 modules compile with 0 errors and
 0 warnings** (`Build completed successfully.`), no `sorry` anywhere.
 Every theorem below has been machine-checked, line by line, by the Lean
 kernel. The suite contains 100+ checked declarations: the original core
@@ -50,6 +50,7 @@ theorem of the SI and the platform reductions.
 | M not identifiable | S2e_ScaleDegeneracy.lean | M_not_identifiable | For s≠1, sM≠M, yet the readout is the same |
 | Theorem S2e.4 (algebraic core) | S2e_ScaleDegeneracy.lean | theorem_S2e4_core | Same p but different κ ⟹ different ξ: raw readouts are not cross-platform comparable |
 | Only knowable combination | S2e_ScaleDegeneracy.lean | only_combination | ξ − p/κ = p/(1−p) |
+| Remark S2e.10 (temperature protocols) | S2e10_Temperature.lean | vantHoff, Ydig, analog_temperature_invariance, degeneracy_dH_zero, two_temp_inversion, kappa0_recovery, kappa_zero_limit, vantHoff_gt_one | (ξ, κ) invariance holds at any temperature factor g; ΔH=0 ⇒ g=1 (degeneracy persists); two-temperature closed-form inversion for M; κ₀ = M/Y₀ − 1; κ₀=0 recovers the dPCR limit |
 | S2b main equation | S2b_DigitalStatistics.lean | P_pos, poisson_limit, correction_factor | P_pos formula; κ=0 reduces to dPCR; γ=1/(1+κ) |
 | S2b estimator | S2b_DigitalStatistics.lean | estimator_inversion, estimator_dPCR_limit | Legitimacy of the inversion μ̂ = −(1+κ)ln(1−(P−b)/(1−b)) |
 | S2b Lemma 1, Lemma 2 | S2b_Lemmas.lean | lemma1_binomial_subset, lemma2_choose_identity | m-subset binomial weight identity; C(N,r)C(r,n) = C(N,n)C(N−n,r−n) |

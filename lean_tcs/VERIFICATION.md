@@ -68,6 +68,8 @@ separate number. Everything after `:= by` is the proof; ignore it.
 | n, k (partition count, occupied count) | `n : ℕ`, `k : ℕ` | S2a |
 | C(n,k) (binomial coefficient) | `Nat.choose n k` | |
 | E[·], Var[·] | explicit sums `∑ k ∈ range (n+1), ...` | S2a |
+| g (van 't Hoff affinity factor) | `vantHoff` | Eq. (S2e.10a) |
+| Y = M/(1+κ₀·g) (digital observable) | `Ydig` | S2e.10.2 |
 
 ## 4. Every statement, in plain math, with its anchor
 
@@ -106,6 +108,22 @@ separate number. Everything after `:= by` is the proof; ignore it.
 | `M_not_identifiable` | If M≠0 and s≠1 then s·M ≠ M (the rescaled system is genuinely different, yet indistinguishable by S2e.2). | "M is not identifiable" remark |
 | `theorem_S2e4_core` | If 0<p<1 and κ₁≠κ₂ (both ≠0), then the ξ₁, ξ₂ satisfying the master equation with the same p obey ξ₁≠ξ₂. | Theorem S2e.4 (algebraic core) |
 | `only_combination` | From ξ = p/(1−p) + p/κ it follows that ξ − p/κ = p/(1−p): only this combination is observable. | "Only knowable combination" remark |
+
+### S2e10_Temperature.lean — temperature protocols (Remark S2e.10)
+
+All entries below are Remark-level algebraic cores of S2e.10.1–S2e.10.2;
+they add **no new numbered theorem**, so the "76 numbered statements"
+count is unchanged.
+
+| Theorem | Plain-math statement | Manuscript anchor |
+|---|---|---|
+| `vantHoff`, `Ydig` | g(ΔH,T,T₀) = exp(−(ΔH/R)·(1/T − 1/T₀)); Y = M/(1 + κ₀·g) (definitions). | Eq. (S2e.10a); S2e.10.2 digital readout |
+| `analog_temperature_invariance` | At any temperature factor g≠0, ξ and κ computed at K = K₀·g are unchanged under (M,Ω,K₀) → (sM,sΩ,sK₀). | S2e.10.1 (Theorem S2e.6, temperature version) |
+| `degeneracy_dH_zero` | If ΔH = 0 then g = 1 at every temperature: all temperatures give the same observable and the degeneracy persists. | S2e.10.2 failure mode (ΔH = 0) |
+| `two_temp_inversion` | With Y₀ measured at g = 1 and Y₁ at g₁: M = Y₀·Y₁·(g₁−1)/(g₁·Y₁ − Y₀). | S2e.10.2 two-temperature inversion |
+| `kappa0_recovery` | Once M is known: κ₀ = M/Y₀ − 1. | S2e.10.2 κ₀ recovery |
+| `kappa_zero_limit` | At κ₀ = 0, Y = M at every temperature. | S2e.10.2, dPCR limit (consistency with Theorem S2c.4.1) |
+| `vantHoff_gt_one` | If ΔH > 0 and T > T₀ then g > 1. | Eq. (S2e.10a) monotonicity |
 
 ### S2b_DigitalStatistics.lean — the digital platform
 

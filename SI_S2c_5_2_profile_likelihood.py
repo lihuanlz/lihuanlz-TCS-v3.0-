@@ -691,7 +691,7 @@ def run_fisher():
     print("=" * 90)
     configs = []
     for M0_t in [1e4, 1e5, 1e6, 1e7, 1e8]:
-        for kappa_t in [1, 5, 10, 20, 50]:
+        for kappa_t in [0.1, 0.5, 1, 5, 10, 20, 50]:  # 扩展：补 κ=0.1, 0.5 两档，覆盖中间区
             for beta_t in [1, 2, 5, 20, 50]:
                 for N_t in [1e4, 1e5, 1e6]:
                     for npts_t in [7, 14, 50]:
@@ -721,6 +721,16 @@ def run_fisher():
     print(f"\nk>=5 subset ({len(k5)} configs):")
     print(f"  Best  chi = {best_k5[0]:.2e}  at (M0={best_k5[1]:.0e}, k={best_k5[2]}, b={best_k5[3]}, N={best_k5[4]:.0e}, npts={best_k5[5]})")
     print(f"  Worst chi = {worst_k5[0]:.2e}")
+
+    # 新增：按 κ 分档汇总，直接回答中间区 0.1-5 的 χ 行为
+    print("\n" + "=" * 90)
+    print("Per-kappa summary (min / median / max chi over all other params)")
+    print("=" * 90)
+    for kt in [0.1, 0.5, 1, 5, 10, 20, 50]:
+        sub = [c for c, M, k, b, N, n in all_chis if k == kt]
+        sub_sorted = sorted(sub)
+        med = sub_sorted[len(sub_sorted) // 2]
+        print(f"kappa={kt:>5}:  min={min(sub):.2e}  median={med:.2e}  max={max(sub):.2e}")
 
     # ---- Extreme design ----
     print("\n" + "=" * 90)

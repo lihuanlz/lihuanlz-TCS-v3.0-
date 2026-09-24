@@ -1207,7 +1207,7 @@ if 'y_obs' not in dir():
     print("Loading data from original script...")
     # Try common filenames with utf-8 encoding
     _candidates = [
-        'SI_Table_1_and_Fig2a_IFv3.py',
+        'SD_1_and_Main_Fig_2a_if.py',
         # legacy local-development filenames removed for the public release;
         # standalone use: simply run this file top to bottom
     ]
