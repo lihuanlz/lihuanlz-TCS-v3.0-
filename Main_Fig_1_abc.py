@@ -224,18 +224,32 @@ def render_a():
     ax1.text(1.48, 12.35, 'Molecular sampling', fontsize=9.5, weight='bold',
              color=NAVY, ha='left', va='center')
     cx = 4.1
-    hw = lambda y: 1.5 * (y - 4.1) / 6.85           # vessel inner half-width
-    tube = [(2.60, 10.95), (5.60, 10.95), (4.45, 4.60), (4.10, 4.10),
-            (3.75, 4.60)]
-    ax1.add_patch(Polygon(tube, closed=True, fc='none', ec=NAVY, lw=1.7,
-                          joinstyle='round', zorder=2))
+    Y_CONE, Y_TIP = 7.10, 4.72          # shoulder / cone-tip of the tube
+    HW = 1.5                            # body half-width
+    def hw(y):                          # vessel inner half-width
+        if y >= Y_CONE:
+            return HW
+        return 0.17 + (y - Y_TIP) * (HW - 0.17) / (Y_CONE - Y_TIP)
+    # Eppendorf-style vessel: cylindrical body + conical bottom + rounded tip
+    _ta = np.linspace(np.pi, 2 * np.pi, 25)
+    tube = ([(cx - HW, 10.95), (cx - HW, Y_CONE)]
+            + list(zip(cx + 0.17 * np.cos(_ta), Y_TIP + 0.17 * np.sin(_ta)))
+            + [(cx + HW, Y_CONE), (cx + HW, 10.95)])
+    ax1.add_patch(Polygon(tube, closed=False, fc='none', ec=NAVY, lw=1.7,
+                          joinstyle='round', capstyle='round', zorder=2))
+    # faint graduation ticks on the right wall
+    for yg in (7.80, 8.70, 9.60):
+        ax1.plot([cx + HW - 0.30, cx + HW - 0.06], [yg, yg], color=NAVY,
+                 lw=1.0, alpha=0.35, zorder=2.5, solid_capstyle='round')
     yl = 9.80                                        # liquid level
-    liq = [(cx - hw(yl), yl), (cx + hw(yl), yl), (4.42, 4.70), (4.10, 4.22),
-           (3.78, 4.70)]
+    liq = ([(cx - hw(yl) + 0.08, yl), (cx + hw(yl) - 0.08, yl),
+            (cx + HW - 0.08, Y_CONE)]
+           + list(zip(cx + 0.10 * np.cos(_ta), Y_TIP + 0.10 + 0.10 * np.sin(_ta)))
+           + [(cx - HW + 0.08, Y_CONE)])
     liq_clip = Polygon(liq, closed=True, fc='none', ec='none', zorder=1)
     ax1.add_patch(liq_clip)
     bands = ['#F8D6D1', '#F5CAC4', '#F2BDB5', '#EFB0A6', '#ECA499']
-    ybs = np.linspace(4.22, yl, 6)
+    ybs = np.linspace(Y_TIP + 0.02, yl, 6)
     for i in range(5):                               # vertical gradient, clipped
         rc = Rectangle((cx - 1.7, ybs[i]), 3.4, ybs[i + 1] - ybs[i],
                        fc=bands[4 - i], ec='none', zorder=1)
@@ -243,7 +257,8 @@ def render_a():
         rc.set_clip_path(liq_clip)
     ax1.add_patch(Ellipse((cx, 10.95), 3.00, 0.42, fc='#EDF1F5', ec=NAVY, lw=1.7,
                           zorder=2.6))               # tube rim / opening
-    ax1.plot([cx - hw(yl), cx + hw(yl)], [yl, yl], color=LIQ_EC, lw=1.3, zorder=2)
+    ax1.add_patch(Ellipse((cx, yl), 2 * (hw(yl) - 0.10), 0.22, fc='#F8D6D1',
+                          ec=LIQ_EC, lw=1.2, zorder=2.4))   # meniscus
 
     rng = np.random.default_rng(9)
     pts = []
@@ -277,19 +292,20 @@ def render_a():
     ax2.text(1.48, 11.60, 'epitope-anchored capture', fontsize=7, style='italic',
              color='#5A6577', ha='left', va='center')
 
-    # generic anchor point (carrier-agnostic) + anchored capture site
-    ax2.add_patch(Circle((3.90, 5.72), 0.16, fc=NAVY, ec='none', zorder=2))
-    ax2.text(4.55, 5.80, 'carrier: bead · surface ·', fontsize=6.5,
-             color='#5A6577', ha='left', va='center')
-    ax2.text(4.55, 5.30, 'droplet · antibody · primer ', fontsize=6.5,
-             color='#5A6577', ha='left', va='center')
-    ax2.add_patch(Rectangle((3.76, 5.90), 0.28, 0.45, fc='#8A97A5', ec=NAVY,
-                            lw=0.9, zorder=2))
-    draw_site(ax2, 3.90, 6.72, 0.85, lw=2.2)            # anchored docking pad
-    mol(ax2, 3.90, 7.86, 0.52, motif_deg=180, seed=4)   # motif docked into notch
+    # generic support bar + anchor point (carrier-agnostic) + capture site
+    ax2.add_patch(FancyBboxPatch((2.40, 5.38), 1.60, 0.30,
+                  boxstyle='round,pad=0.02,rounding_size=0.14',
+                  fc='#8A97A5', ec=NAVY, lw=0.9, zorder=2))
+    ax2.add_patch(Circle((3.20, 5.72), 0.16, fc=NAVY, ec='none', zorder=2))
+    ax2.text(10.30, 5.90, 'carrier: bead · surface · droplet', fontsize=6.5,
+             color='#5A6577', ha='right', va='center')
+    ax2.text(10.30, 5.42, 'capture: antibody · primer', fontsize=6.5,
+             color='#5A6577', ha='right', va='center')
+    draw_site(ax2, 3.20, 6.72, 0.85, lw=2.2)            # anchored docking pad
+    mol(ax2, 3.20, 7.86, 0.52, motif_deg=180, seed=4)   # motif docked into notch
     # incoming molecule (ghost) + trajectory -> the capture event
     mol(ax2, 2.62, 9.55, 0.36, motif_deg=195, seed=6)   # solid free molecule
-    ax2.add_patch(FancyArrowPatch((2.95, 9.18), (3.62, 8.52),
+    ax2.add_patch(FancyArrowPatch((2.95, 9.18), (2.94, 8.52),
                   connectionstyle='arc3,rad=-0.30', arrowstyle='-|>',
                   mutation_scale=9, color='#5A6577', lw=1.2, ls=(0, (3, 2)),
                   alpha=0.85, zorder=3))
@@ -298,22 +314,22 @@ def render_a():
              color=C_EPI, ha='center', va='center', linespacing=1.15)
     ax2.annotate('', xy=(2.62, 10.02), xytext=(2.37, 10.30),
                  arrowprops=dict(arrowstyle='-', color=C_EPI, lw=0.9))
-    ax2.annotate('epitope', xy=(3.98, 7.28), xytext=(5.65, 8.85), fontsize=7,
+    ax2.annotate('epitope', xy=(3.28, 7.28), xytext=(5.65, 8.85), fontsize=7,
                  color=C_EPI, ha='left',
                  arrowprops=dict(arrowstyle='-', color=C_EPI, lw=1.0))
     ax2.text(4.55, 6.30, 'anchored capture site', fontsize=6.5, color='#5A6577',
              ha='left', va='center')
 
     # on/off kinetics
-    ax2.add_patch(FancyArrowPatch((1.78, 8.35), (1.78, 7.45), arrowstyle='-|>',
+    ax2.add_patch(FancyArrowPatch((1.28, 8.35), (1.28, 7.45), arrowstyle='-|>',
                                   mutation_scale=9, color=NAVY, lw=1.4))
-    ax2.add_patch(FancyArrowPatch((2.24, 7.45), (2.24, 8.35), arrowstyle='-|>',
+    ax2.add_patch(FancyArrowPatch((1.74, 7.45), (1.74, 8.35), arrowstyle='-|>',
                                   mutation_scale=9, color=NAVY, lw=1.4))
-    ax2.text(1.58, 7.90, r'$k_{\mathrm{on}}$', fontsize=7, ha='right',
+    ax2.text(1.08, 7.90, r'$k_{\mathrm{on}}$', fontsize=7, ha='right',
              va='center', color=NAVY)
-    ax2.text(2.44, 7.90, r'$k_{\mathrm{off}}$', fontsize=7, ha='left',
+    ax2.text(1.94, 7.90, r'$k_{\mathrm{off}}$', fontsize=7, ha='left',
              va='center', color=NAVY)
-    ax2.text(2.00, 6.80, 'K: affinity', fontsize=6.5, ha='center', va='center',
+    ax2.text(1.50, 6.80, 'K: affinity', fontsize=6.5, ha='center', va='center',
              color='#5A6577')
 
     # scale-degeneracy triangle  M -- Omega -- K  with x s
@@ -699,14 +715,6 @@ def render_b():
     ax.text(2.70, 4.56, r'$\rightarrow$ ultrasensitive ambient sensing',
             fontsize=6.3, color='#0B4E7A', ha='right')
 
-    # -------------------------------------------- master-equation continuity
-    ax.add_patch(FancyBboxPatch((-2.48, 4.50), 2.30, 0.62,
-                 boxstyle='round,pad=0.02,rounding_size=0.10',
-                 fc=BOX_FC, ec=BOX_EC, lw=1.2, zorder=6))
-    ax.text(-1.33, 4.81, r'one master equation:  $\xi = \frac{p}{1-p} + '
-            r'\frac{p}{\kappa}$', fontsize=6.8, ha='center', va='center',
-            color=NAVY, zorder=7)
-
     # -------------------------------------------------------------- legend
     lx, ly = 1.28, 10.28
     ax.scatter([lx], [ly], s=110, c=[C_TGT], edgecolors=NAVY, linewidths=1,
@@ -785,6 +793,17 @@ def render_c():
             color='red', lw=5, zorder=15, label=r'$\xi = 1$')
     ax.text(0, 0, p_elev[idx_text]+0.1, r'$\xi = 1$', color='red',
             fontsize=FS, weight='bold', zorder=20)
+    # regime threshold curves kappa = 0.1 / 10 on the surface (echo panel b)
+    for k0, lab in ((0.1, r'$\kappa = 0.1$'), (10.0, r'$\kappa = 10$')):
+        p_t = np.logspace(-4, np.log10(0.999), 400)
+        xi_t = p_t / (1 - p_t) + p_t / k0
+        ax.plot(np.log10(xi_t), np.full_like(p_t, np.log10(k0)), p_t + 0.008,
+                color='white', lw=4.2, zorder=14)
+        ax.plot(np.log10(xi_t), np.full_like(p_t, np.log10(k0)), p_t + 0.008,
+                color='#1F2D4E', lw=1.8, ls=(0, (4, 2)), zorder=15, label=lab)
+    # contour projection on the floor for depth
+    ax.contour(logXi, logK, z_P, levels=np.arange(0.1, 1.0, 0.1), zdir='z',
+               offset=0, cmap='coolwarm', linewidths=0.7, alpha=0.5, zorder=2)
     ax.set_xlabel(r'$\log_{10}\xi$', fontsize=FS)
     xi_ticks = [0.01, 1, 100]
     ax.set_xticks(np.log10(xi_ticks))
@@ -867,4 +886,6 @@ OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 fig.savefig(os.path.join(OUT_DIR, 'Fig1_abc.svg'), dpi=600,
             facecolor='white')
 fig.savefig(os.path.join(OUT_DIR, 'Fig1_abc.pdf'), facecolor='white')
+fig.savefig(os.path.join(OUT_DIR, 'Fig1_abc.png'), dpi=600,
+            facecolor='white')
 print('saved abc composite')
